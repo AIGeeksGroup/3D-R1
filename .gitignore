@@ -1,0 +1,10 @@
+.DS_Store
+*.egg-info/
+dist/
+data/
+__pycache__
+build
+*.so
+checkpoints
+.vscode
+third_party
