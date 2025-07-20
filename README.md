@@ -7,4 +7,4 @@ This is the official repository for the paper:
 >
 > \*Equal contribution. <sup>†</sup>Project lead. <sup>#</sup>Corresponding author.
 >
-> ### [Paper]() | [Website]() | [Data]() | [Papers With Code]() | [HF Paper]()
+> ### [Paper]() | [Website]() | [Data](https://huggingface.co/datasets/AIGeeksGroup/Scene-30K) | [Models](https://huggingface.co/AIGeeksGroup/3D-R1) | [Papers With Code]() | [HF Paper]()
