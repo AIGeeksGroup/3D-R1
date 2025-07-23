@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="description"
+        content="R2E-Gym: Procedural Environment Generation and Hybrid Verifiers for Scaling Open-Weights SWE Agents" />
+    <meta name="keywords"
+        content="R2E-Gym, Large Language Models, LLM, Software Engineering, SWE Agents, Procedural Environment Generation, Hybrid Verifiers" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>3D-R1</title>
+
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet" />
+    <link rel="stylesheet" href="./css/bulma.min.css" />
+    <link rel="stylesheet" href="./css/bulma-carousel.min.css" />
+    <link rel="stylesheet" href="./css/bulma-slider.min.css" />
+    <link rel="stylesheet" href="./css/fontawesome.all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css" />
+    <link rel="stylesheet" href="./css/index.css" />
+    <!-- add page icon at 64 x 64-->
+    <!-- <link rel="icon" type="image/png" href="./assets/re.png" sizes="256x256" /> -->
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script defer src="./js/fontawesome.all.min.js"></script>
+    <script src="./js/bulma-carousel.min.js"></script>
+    <script src="./js/bulma-slider.min.js"></script>
+    <script src="./js/index.js"></script>
+</head>
+
+<body>
+    <section class="hero fade-in">
+        <div class="hero-body">
+            <div class="container">
+                <div class="has-text-centered">
+                    <!-- <h1 class="publication-title">
+                        <span class="dnerf">R2E-Gym</span>
+                    </h1>
+                    <h2 class="publication-subtitle">
+                        Procedural Environment Generation and Hybrid Verifiers for Scaling Open-Weights SWE Agents
+                    </h2> -->
+                    <h1 class="title"><span style="font-weight: 700; color: #2563eb;">3D-R1: </span>Enhancing Reasoning in 3D VLMs for Unified Scene Understanding</h1>
+                    <!-- <h2 class="conference">Conference</h2> -->
+                    <div class="publication-authors">
+                        <span class="author-block">
+                            <a href="">Ting Huang</a><sup>1*</sup></span>
+                        <span class="author-block">
+                            <a href="https://steve-zeyu-zhang.github.io/">Zeyu Zhang</a><sup>2*†</sup></span>
+                        <span class="author-block">
+                            <a href="https://people.eecs.berkeley.edu/~istoica/">Hao Tang</a><sup>2‡</sup></span>
+                    </div>
+
+                    <div class="publication-authors">
+                        <span class="author-block"><sup>1</sup>Shanghai University of Engineering Science</span>
+                        <span class="author-block"><sup>2</sup>Peking University</span>
+                    </div>
+
+                    <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-light);">
+                        <span><sup>*</sup>Equal Contribution. <sup>†</sup>Project lead. <sup>‡</sup>Corresponding author.</span>
+                    </div>
+
+                    <div class="publication-links">
+                        <span class="link-block">
+                            <a href="www.arxiv.com" class="external-link button is-dark">
+                                <span class="icon">
+                                    <i class="fas fa-file-pdf"></i>
+                                </span>
+                                <span>Paper</span>
+                            </a>
+                        </span>
+                        <span class="link-block">
+                            <a href="https://github.com/AIGeeksGroup/3D-R1" class="external-link button is-dark">
+                                <span class="icon">
+                                    <i class="fab fa-github"></i>
+                                </span>
+                                <span>Code</span>
+                            </a>
+                        </span>
+                        <span class="link-block">
+                            <a href="https://huggingface.co/AIGeeksGroup/3D-R1" class="external-link button is-dark">
+                                <!-- <span class="icon">
+                                    <i class="fab fa-github"></i>
+                                </span> -->
+                                <span>🗂️ Data</span>
+                            </a>
+                        </span>
+                        <span class="link-block">
+                            <a href="https://huggingface.co/datasets/AIGeeksGroup/Scene-30K" class="external-link button is-dark">
+                                <!-- <span class="icon">
+                                    <i class="fab fa-github"></i>
+                                </span> -->
+                                <span>🤗 Models</span>
+                            </a>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section fade-in">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="column is-10">
+                    <div class="columns is-centered">
+                        <div class="column is-12" style="display: flex; justify-content: center;">
+                            <video src="./assets/teaser.mp4" autoplay muted loop controls style="width: 100%; max-width: 800px; object-fit: contain;"></video>
+                        </div>
+                    </div>
+                    <p style="text-align: center;">
+                        <b>TLDR:</b> 3D-R1 is an open-source generalist model that enhances the reasoning of 3D VLMs for unified scene understanding.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+
+            <div class="columns is-centered">
+                <div class="column is-10">
+                    <div class="highlight-box"
+                        style="background: linear-gradient(to right, #f8fafc, #f1f5f9); border-radius: 12px; border-left: 6px solid var(--primary-color); box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                        <h3 class="title is-4 has-text-centered"
+                            style="margin-bottom: 1.5rem; color: var(--primary-color);">🚀 Key Contributions </h3>
+
+                        <div style="display: flex; flex-direction: column; gap: 1.2rem;">
+                            <div class="innovation-item" style="display: flex; align-items: flex-start; gap: 0.8rem;">
+                                <div
+                                    style="background-color: var(--primary-color); color: white; padding: 0.6rem; border-radius: 50%; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; min-width: 2.6rem; height: 2.6rem;">
+                                    🤖
+                                </div>
+                                <div>
+                                    <h4 style="font-weight: 600; margin-bottom: 0.2rem; font-size: 1.1rem;">Foundation Model</h4>
+                                    <p style="margin: 0; line-height: 1.4;">A pioneering 3D-VLM leverages reinforcement learning and dynamic view selection to enhance reasoning capabilities in 3D scene understanding.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="innovation-item" style="display: flex; align-items: flex-start; gap: 0.8rem;">
+                                <div
+                                    style="background-color: var(--primary-color); color: white; padding: 0.6rem; border-radius: 50%; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; min-width: 2.6rem; height: 2.6rem;">
+                                    ⛃
+                                </div>
+                                <div>
+                                    <h4 style="font-weight: 600; margin-bottom: 0.2rem; font-size: 1.1rem;">Scene-30K Data Engine</h4>
+                                    <p style="margin: 0; line-height: 1.4;">A high-quality 30K scene CoT dataset is constructed with a data engine based on Gemini-Pro and existing 3D-VL datasets.</p>
+                                </div>
+                            </div>
+
+                            <div class="innovation-item" style="display: flex; align-items: flex-start; gap: 0.8rem;">
+                                <div
+                                    style="background-color: var(--primary-color); color: white; padding: 0.6rem; border-radius: 50%; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; min-width: 2.6rem; height: 2.6rem;">
+                                    🏆
+                                </div>
+                                <div>
+                                    <h4 style="font-weight: 600; margin-bottom: 0.2rem; font-size: 1.1rem;">SOTA Performance</h4>
+                                    <p style="margin: 0; line-height: 1.4;">Extensive experiments demonstrate that 3D-R1 achieves an average improvement of 10% across 7 downstream tasks and various 3D scene benchmarks.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- <section class="section fade-in">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="column is-8">
+                    <h2 class="title is-3">Introduction</h2>
+                    <div class="content">
+                        <p>
+                            Autonomous software engineering (SWE) has made remarkable progress in solving real-world
+                            programming challenges. While LLM-based SWE agents have demonstrated impressive
+                            capabilities, current state-of-the-art performance is predominantly achieved by proprietary
+                            models, with open-source alternatives lagging significantly behind.
+                            Closing this performance gap requires addressing two core challenges: <b>First</b>, we need
+                            scalable methods to curate diverse, high-quality execution environments for training.
+                            <b>Second</b>, we need efficient strategies for scaling test-time compute.
+                        </p>
+
+                        <p>
+                            R2E-Gym addresses these challenges as the largest procedurally generated environment for
+                            training real-world SWE agents—comprising over 8.1K problems with executable environments
+                            and problem statements through our SWE-Gen pipeline. Next, we introduce a hybrid verifiers
+                            that combines the strengths of execution-based and execution-free verification methods,
+                            enabling significantly better performance at test time.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section> -->
+
+
+    <section class="section fade-in">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="column is-8">
+                    <h2 class="title is-3">Visualization</h2>
+
+                    <h3 class="title is-4">3D Question Answering</h3>
+                    <div class="container">
+                        <div class="columns is-centered">
+                            <div class="column is-10">
+                                <div class="columns is-centered">
+                                    <div class="column is-12" style="display: flex; justify-content: center;">
+                                        <video src="./assets/3d_qa_demo.mp4" autoplay muted loop controls style="width: 100%; max-width: 800px; object-fit: contain;"></video>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+
+                    <h3 class="title is-4">3D Dialogue</h3>
+                    <div class="container">
+                        <div class="columns is-centered">
+                            <div class="column is-10">
+                                <div class="columns is-centered">
+                                    <div class="column is-12" style="display: flex; justify-content: center;">
+                                        <video src="./assets/3d_dialogue_demo.mp4" autoplay muted loop controls style="width: 100%; max-width: 800px; object-fit: contain;"></video>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="title is-4">3D Reasoning</h3>
+                    <div class="container">
+                        <div class="columns is-centered">
+                            <div class="column is-10">
+                                <div class="columns is-centered">
+                                    <div class="column is-12" style="display: flex; justify-content: center;">
+                                        <video src="./assets/3d_reasoning_demo.mp4" autoplay muted loop controls style="width: 100%; max-width: 800px; object-fit: contain;"></video>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 class="title is-4">3D Planning</h3>
+                    <div class="container">
+                        <div class="columns is-centered">
+                            <div class="column is-10">
+                                <div class="columns is-centered">
+                                    <div class="column is-12" style="display: flex; justify-content: center;">
+                                        <video src="./assets/3d_planning_demo.mp4" autoplay muted loop controls style="width: 100%; max-width: 800px; object-fit: contain;"></video>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <section class="section fade-in">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="column is-8">
+                    <h2 class="title is-3">R2E-Gym: Procedural Synthetic Data Generation</h2>
+
+                    <h3 class="title is-4">The SWE-Gen Approach</h3>
+
+                    <div
+                        style="background-color: #f8fafc; border-radius: 12px; border-left: 6px solid #047857; padding: 1.2rem; margin-bottom: 1.5rem;">
+                        <p style="font-weight: 600; margin-bottom: 0.8rem;">SWE-Gen breaks traditional dependencies on
+                            human-written issues through a novel synthetic data pipeline:</p>
+
+                        <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+
+                            <div style="display: flex; align-items: flex-start; gap: 0.8rem;">
+                                <div
+                                    style="background-color: #047857; color: white; padding: 0.4rem; border-radius: 50%; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem;">
+                                    1
+                                </div>
+                                <div>
+                                    <p style="margin: 0; line-height: 1.4;"><strong>Automated Test Generation:</strong>
+                                        Creates reproduction tests that validate patch correctness in cases where humans
+                                        don't provide one</p>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; align-items: flex-start; gap: 0.8rem;">
+                                <div
+                                    style="background-color: #047857; color: white; padding: 0.4rem; border-radius: 50%; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem;">
+                                    2
+                                </div>
+                                <div>
+                                    <p style="margin: 0; line-height: 1.4;"><strong>Issue Generation:</strong> Converts
+                                        code changes into natural language problem statements using execution assisted
+                                        back-translation for agent training</p>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; align-items: flex-start; gap: 0.8rem;">
+                                <div
+                                    style="background-color: #047857; color: white; padding: 0.4rem; border-radius: 50%; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem;">
+                                    3
+                                </div>
+                                <div>
+                                    <p style="margin: 0; line-height: 1.4;"><strong>Executable Environments:</strong>
+                                        Released over 8.1K unique tasks across 13 repositories with pre-built docker
+                                        images </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="columns is-centered">
+                        <div class="column is-12">
+                            <div class="columns is-centered">
+                                <div class="column is-6"
+                                    style="display: flex; flex-direction: column; justify-content: center;">
+                                    <img src="./assets/r2egym/r2e_gym_repo_distribution.png"
+                                        alt="Complete Dataset Distribution"
+                                        style="object-fit: contain; height: 280px;" />
+                                    <p class="figure-caption" style="margin-top: 1rem;">
+                                        Complete dataset distribution
+                                    </p>
+                                </div>
+                                <div class="column is-6"
+                                    style="display: flex; flex-direction: column; justify-content: center;">
+                                    <img src="./assets/r2egym/r2e_gym_subset_repo_distribution.png"
+                                        alt="Subset Dataset Distribution" style="object-fit: contain; height: 280px;" />
+                                    <p class="figure-caption" style="margin-top: 1rem;">
+                                        Subset (non overlapping with SWE-Bench) dataset distribution
+                                    </p>
+                                </div>
+                            </div>
+                            <p class="figure-caption">
+                                <b>Figure 2:</b> Dataset composition showing the diversity of repositories
+                                and problems in our synthetic dataset, enabling significantly larger and more diverse
+                                training environments than previous methods. Left: Full R2E-Gym dataset. Right:
+                                R2E-Gym subset (non-overlapping with SWE-Bench) used for training.
+                            </p>
+                        </div>
+                    </div>
+
+                    <h3 class="title is-4">Training SWE-Agents</h3>
+                    <p>
+                        We use the R2E-Gym dataset to train our R2E-Gym-32B agent, a 32B parameter model
+                        based on the Qwen model trained on high-quality trajectories collected on the R2E-Gym dataset.
+                        Our model achieves SOTA - 34.4% Pass@1 performance on the SWE-Bench Verified benchmark.
+
+                    </p>
+                    <br />
+
+                    <div class="columns is-centered">
+                        <div class="column is-8">
+                            <img src="./assets/r2egym/data_size_ablation.png" alt="Data Size Ablation" />
+                            <p class="figure-caption">
+                                <b>Figure 3:</b> Performance scaling with increasing training data volume shows
+                                consistent improvement as more synthetic examples are added, demonstrating that the
+                                SWE-Gen methodology enables more effective scaling than previous approaches.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section fade-in">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="column is-8">
+                    <h2 class="title is-3">R2E-Gym: Procedural Synthetic Data Generation</h2>
+
+                    <h3 class="title is-4">The SWE-Gen Approach</h3>
+
+                    <div
+                        style="background-color: #f8fafc; border-radius: 12px; border-left: 6px solid #047857; padding: 1.2rem; margin-bottom: 1.5rem;">
+                        <p style="font-weight: 600; margin-bottom: 0.8rem;">SWE-Gen breaks traditional dependencies on
+                            human-written issues through a novel synthetic data pipeline:</p>
+
+                        <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+
+                            <div style="display: flex; align-items: flex-start; gap: 0.8rem;">
+                                <div
+                                    style="background-color: #047857; color: white; padding: 0.4rem; border-radius: 50%; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem;">
+                                    1
+                                </div>
+                                <div>
+                                    <p style="margin: 0; line-height: 1.4;"><strong>Automated Test Generation:</strong>
+                                        Creates reproduction tests that validate patch correctness in cases where humans
+                                        don't provide one</p>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; align-items: flex-start; gap: 0.8rem;">
+                                <div
+                                    style="background-color: #047857; color: white; padding: 0.4rem; border-radius: 50%; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem;">
+                                    2
+                                </div>
+                                <div>
+                                    <p style="margin: 0; line-height: 1.4;"><strong>Issue Generation:</strong> Converts
+                                        code changes into natural language problem statements using execution assisted
+                                        back-translation for agent training</p>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; align-items: flex-start; gap: 0.8rem;">
+                                <div
+                                    style="background-color: #047857; color: white; padding: 0.4rem; border-radius: 50%; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem;">
+                                    3
+                                </div>
+                                <div>
+                                    <p style="margin: 0; line-height: 1.4;"><strong>Executable Environments:</strong>
+                                        Released over 8.1K unique tasks across 13 repositories with pre-built docker
+                                        images </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="columns is-centered">
+                        <div class="column is-12">
+                            <div class="columns is-centered">
+                                <div class="column is-6"
+                                    style="display: flex; flex-direction: column; justify-content: center;">
+                                    <img src="./assets/r2egym/r2e_gym_repo_distribution.png"
+                                        alt="Complete Dataset Distribution"
+                                        style="object-fit: contain; height: 280px;" />
+                                    <p class="figure-caption" style="margin-top: 1rem;">
+                                        Complete dataset distribution
+                                    </p>
+                                </div>
+                                <div class="column is-6"
+                                    style="display: flex; flex-direction: column; justify-content: center;">
+                                    <img src="./assets/r2egym/r2e_gym_subset_repo_distribution.png"
+                                        alt="Subset Dataset Distribution" style="object-fit: contain; height: 280px;" />
+                                    <p class="figure-caption" style="margin-top: 1rem;">
+                                        Subset (non overlapping with SWE-Bench) dataset distribution
+                                    </p>
+                                </div>
+                            </div>
+                            <p class="figure-caption">
+                                <b>Figure 2:</b> Dataset composition showing the diversity of repositories
+                                and problems in our synthetic dataset, enabling significantly larger and more diverse
+                                training environments than previous methods. Left: Full R2E-Gym dataset. Right:
+                                R2E-Gym subset (non-overlapping with SWE-Bench) used for training.
+                            </p>
+                        </div>
+                    </div>
+
+                    <h3 class="title is-4">Training SWE-Agents</h3>
+                    <p>
+                        We use the R2E-Gym dataset to train our R2E-Gym-32B agent, a 32B parameter model
+                        based on the Qwen model trained on high-quality trajectories collected on the R2E-Gym dataset.
+                        Our model achieves SOTA - 34.4% Pass@1 performance on the SWE-Bench Verified benchmark.
+
+                    </p>
+                    <br />
+
+                    <div class="columns is-centered">
+                        <div class="column is-8">
+                            <img src="./assets/r2egym/data_size_ablation.png" alt="Data Size Ablation" />
+                            <p class="figure-caption">
+                                <b>Figure 3:</b> Performance scaling with increasing training data volume shows
+                                consistent improvement as more synthetic examples are added, demonstrating that the
+                                SWE-Gen methodology enables more effective scaling than previous approaches.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- <footer class="footer">
+        <div class="container">
+            <div class="has-text-centered">
+                <p>
+                    <strong style="color: white;">R2E-Gym:</strong> Procedural Environment Generation and Hybrid
+                    Verifiers for Scaling
+                    Open-Weights SWE Agents
+                </p>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.8;">
+                    Last updated: April 2025
+                </p>
+            </div>
+        </div>
+    </footer> -->
+
+</body>
+
+</html>
