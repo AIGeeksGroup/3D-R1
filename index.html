@@ -111,7 +111,7 @@
                         </div>
                     </div>
                     <p class="figure-caption">
-                        3D-R1 is an open-source generalist model that enhances the reasoning of 3D VLMs for unified scene understanding.
+                        This and the following visualizations show the zero-shot results of 3D-R1 in various complex scenes, demonstrating its incredible generalizability and state-of-the-art performance.
                     </p>
                 </div>
             </div>
@@ -201,7 +201,7 @@
         <div class="container">
             <div class="columns is-centered">
                 <div class="column is-8">
-                    <h2 class="title is-3">Examples</h2>
+                    <h2 class="title is-3">Application</h2>
 
                     <h3 class="title is-4">3D Scene Dense Captioning (3D-DC)</h3>
                     <div class="container">
@@ -386,137 +386,80 @@
                         </div>
                     </div>
 
-                    <h3 class="title is-4">Training SWE-Agents</h3>
+                    <h3 class="title is-4">Architecture</h3>
                     <p>
-                        We use the R2E-Gym dataset to train our R2E-Gym-32B agent, a 32B parameter model
-                        based on the Qwen model trained on high-quality trajectories collected on the R2E-Gym dataset.
-                        Our model achieves SOTA - 34.4% Pass@1 performance on the SWE-Bench Verified benchmark.
+                        Our 3D-R1 model is designed based on Qwen2.5-VL-7B-Instruct and trained with the high-quality synthetic Scene-30K dataset.
+                        It takes text, multi-view images, 3D point clouds, and depth maps as input and formulates
+                        comprehensive 3D tasks as autoregressive sequence prediction.
 
                     </p>
-                    <br />
+                    <br/>
 
                     <div class="columns is-centered">
                         <div class="column is-8">
-                            <img src="./assets/r2egym/data_size_ablation.png" alt="Data Size Ablation" />
+                            <img src="./assets/arch.png" alt="arch" />
                             <p class="figure-caption">
-                                <b>Figure 3:</b> Performance scaling with increasing training data volume shows
-                                consistent improvement as more synthetic examples are added, demonstrating that the
-                                SWE-Gen methodology enables more effective scaling than previous approaches.
+                                3D-R1's Architecture
                             </p>
                         </div>
                     </div>
+
+                    <h3 class="title is-4">CoT Data Engine</h3>
+                    <p>
+                        The point cloud of a scene is first sent to scene dscription generator to get a description of the scene. Then based on the description, we apply Gemini-Pro to synthetic CoT data.
+
+                    </p>
+                    <br/>
+
+                    <div class="columns is-centered">
+                        <div class="column is-8">
+                            <img src="./assets/cot.png" alt="cot" />
+                            <p class="figure-caption">
+                                Scene-30K Data Engine
+                            </p>
+                        </div>
+                    </div>
+
+                    <h3 class="title is-4">Reinforcement Learning</h3>
+                    <p>
+                        The policy model generates N outputs from a point cloud
+                        and question. Then perception IoU, semantic CLIP-similarity, and format-adherence rewards are computed, grouped, and 
+                        combined with a KL term to a frozen reference model to update the policy.
+
+                    </p>
+                    <br/>
+
+                    <div class="columns is-centered">
+                        <div class="column is-8">
+                            <img src="./assets/grpo.png" alt="reward" />
+                            <p class="figure-caption">
+                                RL Rewards
+                            </p>
+                        </div>
+                    </div>
+
+                    <h3 class="title is-4">Multi-Task Generalist</h3>
+                    <p>
+                        3D-R1 is a generalist model capable of handling various downstream tasks and applications in a zero-shot manner with incredible generalizability, significantly reducing the need for expensive adaptation.
+                    </p>
+                    <br/>
+
+                    <div class="columns is-centered">
+                        <div class="column is-8">
+                            <img src="./assets/generalist.png" alt="generalist" />
+                            <p class="figure-caption">
+                                Various Application
+                            </p>
+                        </div>
+                    </div>
+
+
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="section fade-in">
-        <div class="container">
-            <div class="columns is-centered">
-                <div class="column is-8">
-                    <h2 class="title is-3">R2E-Gym: Procedural Synthetic Data Generation</h2>
-
-                    <h3 class="title is-4">The SWE-Gen Approach</h3>
-
-                    <div
-                        style="background-color: #f8fafc; border-radius: 12px; border-left: 6px solid #047857; padding: 1.2rem; margin-bottom: 1.5rem;">
-                        <p style="font-weight: 600; margin-bottom: 0.8rem;">SWE-Gen breaks traditional dependencies on
-                            human-written issues through a novel synthetic data pipeline:</p>
-
-                        <div style="display: flex; flex-direction: column; gap: 0.8rem;">
-
-                            <div style="display: flex; align-items: flex-start; gap: 0.8rem;">
-                                <div
-                                    style="background-color: #047857; color: white; padding: 0.4rem; border-radius: 50%; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem;">
-                                    1
-                                </div>
-                                <div>
-                                    <p style="margin: 0; line-height: 1.4;"><strong>Automated Test Generation:</strong>
-                                        Creates reproduction tests that validate patch correctness in cases where humans
-                                        don't provide one</p>
-                                </div>
-                            </div>
-
-                            <div style="display: flex; align-items: flex-start; gap: 0.8rem;">
-                                <div
-                                    style="background-color: #047857; color: white; padding: 0.4rem; border-radius: 50%; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem;">
-                                    2
-                                </div>
-                                <div>
-                                    <p style="margin: 0; line-height: 1.4;"><strong>Issue Generation:</strong> Converts
-                                        code changes into natural language problem statements using execution assisted
-                                        back-translation for agent training</p>
-                                </div>
-                            </div>
-
-                            <div style="display: flex; align-items: flex-start; gap: 0.8rem;">
-                                <div
-                                    style="background-color: #047857; color: white; padding: 0.4rem; border-radius: 50%; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; min-width: 2rem; height: 2rem;">
-                                    3
-                                </div>
-                                <div>
-                                    <p style="margin: 0; line-height: 1.4;"><strong>Executable Environments:</strong>
-                                        Released over 8.1K unique tasks across 13 repositories with pre-built docker
-                                        images </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="columns is-centered">
-                        <div class="column is-12">
-                            <div class="columns is-centered">
-                                <div class="column is-6"
-                                    style="display: flex; flex-direction: column; justify-content: center;">
-                                    <img src="./assets/r2egym/r2e_gym_repo_distribution.png"
-                                        alt="Complete Dataset Distribution"
-                                        style="object-fit: contain; height: 280px;" />
-                                    <p class="figure-caption" style="margin-top: 1rem;">
-                                        Complete dataset distribution
-                                    </p>
-                                </div>
-                                <div class="column is-6"
-                                    style="display: flex; flex-direction: column; justify-content: center;">
-                                    <img src="./assets/r2egym/r2e_gym_subset_repo_distribution.png"
-                                        alt="Subset Dataset Distribution" style="object-fit: contain; height: 280px;" />
-                                    <p class="figure-caption" style="margin-top: 1rem;">
-                                        Subset (non overlapping with SWE-Bench) dataset distribution
-                                    </p>
-                                </div>
-                            </div>
-                            <p class="figure-caption">
-                                <b>Figure 2:</b> Dataset composition showing the diversity of repositories
-                                and problems in our synthetic dataset, enabling significantly larger and more diverse
-                                training environments than previous methods. Left: Full R2E-Gym dataset. Right:
-                                R2E-Gym subset (non-overlapping with SWE-Bench) used for training.
-                            </p>
-                        </div>
-                    </div>
-
-                    <h3 class="title is-4">Training SWE-Agents</h3>
-                    <p>
-                        We use the R2E-Gym dataset to train our R2E-Gym-32B agent, a 32B parameter model
-                        based on the Qwen model trained on high-quality trajectories collected on the R2E-Gym dataset.
-                        Our model achieves SOTA - 34.4% Pass@1 performance on the SWE-Bench Verified benchmark.
-
-                    </p>
-                    <br />
-
-                    <div class="columns is-centered">
-                        <div class="column is-8">
-                            <img src="./assets/r2egym/data_size_ablation.png" alt="Data Size Ablation" />
-                            <p class="figure-caption">
-                                <b>Figure 3:</b> Performance scaling with increasing training data volume shows
-                                consistent improvement as more synthetic examples are added, demonstrating that the
-                                SWE-Gen methodology enables more effective scaling than previous approaches.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
+   
 
     <footer class="footer">
         <div class="container">
