@@ -55,7 +55,7 @@
                     </div>
 
                     <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-light);">
-                        <span><sup>*</sup>Equal Contribution. <sup>†</sup>Project lead. <sup>‡</sup>Corresponding author.</span>
+                        <span><sup>*</sup>Equal contribution. <sup>†</sup>Project lead. <sup>‡</sup>Corresponding author.</span>
                     </div>
 
                     <div class="publication-links">
@@ -324,9 +324,8 @@
                                     1
                                 </div>
                                 <div>
-                                    <p style="margin: 0; line-height: 1.4;"><strong>Automated Test Generation:</strong>
-                                        Creates reproduction tests that validate patch correctness in cases where humans
-                                        don't provide one</p>
+                                    <p style="margin: 0; line-height: 1.4;"><strong>Diversity:</strong>
+                                        Scene-30K contains diverse scene categories and question types.</p>
                                 </div>
                             </div>
 
@@ -336,9 +335,8 @@
                                     2
                                 </div>
                                 <div>
-                                    <p style="margin: 0; line-height: 1.4;"><strong>Issue Generation:</strong> Converts
-                                        code changes into natural language problem statements using execution assisted
-                                        back-translation for agent training</p>
+                                    <p style="margin: 0; line-height: 1.4;"><strong>Multi-task performance:</strong>
+                                        3D-R1 demonstrates strong performance across various tasks.</p>
                                 </div>
                             </div>
 
@@ -348,9 +346,8 @@
                                     3
                                 </div>
                                 <div>
-                                    <p style="margin: 0; line-height: 1.4;"><strong>Executable Environments:</strong>
-                                        Released over 8.1K unique tasks across 13 repositories with pre-built docker
-                                        images </p>
+                                    <p style="margin: 0; line-height: 1.4;"><strong>Generalizability:</strong>
+                                        3D-R1 exhibits remarkable generalizability with enhanced reasoning capabilities.</p>
                                 </div>
                             </div>
                         </div>
@@ -370,18 +367,17 @@
                                 </div>
                                 <div class="column is-6"
                                     style="display: flex; flex-direction: column; justify-content: center;">
-                                    <img src="./assets/r2egym/r2e_gym_subset_repo_distribution.png"
-                                        alt="Subset Dataset Distribution" style="object-fit: contain; height: 280px;" />
+                                    <img src="./assets/radar.png"
+                                        alt="radar" style="object-fit: contain; height: 280px;" />
                                     <p class="figure-caption" style="margin-top: 1rem;">
                                         Multi-task Performance
                                     </p>
                                 </div>
                             </div>
+
+                            <img src="./assets/bar.png" alt="bar" />
                             <p class="figure-caption">
-                                <b>Figure 2:</b> Dataset composition showing the diversity of repositories
-                                and problems in our synthetic dataset, enabling significantly larger and more diverse
-                                training environments than previous methods. Left: Full R2E-Gym dataset. Right:
-                                R2E-Gym subset (non-overlapping with SWE-Bench) used for training.
+                                Generalizability
                             </p>
                         </div>
                     </div>
@@ -396,7 +392,7 @@
                     <br/>
 
                     <div class="columns is-centered">
-                        <div class="column is-8">
+                        <div class="column is-12">
                             <img src="./assets/arch.png" alt="arch" />
                             <p class="figure-caption">
                                 3D-R1's Architecture
@@ -412,7 +408,7 @@
                     <br/>
 
                     <div class="columns is-centered">
-                        <div class="column is-8">
+                        <div class="column is-12">
                             <img src="./assets/cot.png" alt="cot" />
                             <p class="figure-caption">
                                 Scene-30K Data Engine
@@ -430,7 +426,7 @@
                     <br/>
 
                     <div class="columns is-centered">
-                        <div class="column is-8">
+                        <div class="column is-12">
                             <img src="./assets/grpo.png" alt="reward" />
                             <p class="figure-caption">
                                 RL Rewards
@@ -445,7 +441,7 @@
                     <br/>
 
                     <div class="columns is-centered">
-                        <div class="column is-8">
+                        <div class="column is-12">
                             <img src="./assets/generalist.png" alt="generalist" />
                             <p class="figure-caption">
                                 Various Application
