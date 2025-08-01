@@ -30,33 +30,39 @@ https://github.com/user-attachments/assets/45fa0d43-d30e-4211-9194-defd60d8f9c4
 
 <table>
   <tr>
-    <td width="500" align="center" valign="top">
+    <td  align="center" valign="top">
       <b>3D Scene Dense Captioning (3D-DC)</b>
-      <video src="https://github.com/user-attachments/assets/34ebbb05-6fc2-4c9e-a957-955c54edaf70" width="500" controls></video><br>
+      <video src="https://github.com/user-attachments/assets/34ebbb05-6fc2-4c9e-a957-955c54edaf70"  controls></video><br>
     </td>
-    <td width="500" align="center" valign="top">
+    <td  align="center" valign="top">
       <b>3D Object Captioning</b>
-      <video src="https://github.com/user-attachments/assets/87d70ed8-aed5-48a7-9e2c-fb35464f76d9" width="500" controls></video><br>
+      <video src="https://github.com/user-attachments/assets/87d70ed8-aed5-48a7-9e2c-fb35464f76d9"  controls></video><br>
     </td>
-    <td width="500" align="center" valign="top">
+    </tr>
+  <tr>
+    <td  align="center" valign="top">
       <b>3D Visual Grounding (3D-VG)</b>
-      <video src="https://github.com/user-attachments/assets/703fe056-7a82-4921-9768-208b6d1dd9a0" width="500" controls></video><br>
+      <video src="https://github.com/user-attachments/assets/703fe056-7a82-4921-9768-208b6d1dd9a0"  controls></video><br>
     </td>
-    <td width="500" align="center" valign="top">
+    <td  align="center" valign="top">
       <b>3D Question Answering (3D-QA)</b>
-      <video src="https://github.com/user-attachments/assets/3448dc2b-a015-4169-a9ea-df21289b2f63" width="500" controls></video><br>
+      <video src="https://github.com/user-attachments/assets/3448dc2b-a015-4169-a9ea-df21289b2f63"  controls></video><br>
     </td>
-    <td width="500" align="center" valign="top">
+    </tr>
+  <tr>
+    <td  align="center" valign="top">
       <b>3D Dialogue</b>
-      <video src="https://github.com/user-attachments/assets/bf17fbb1-a3ef-4013-8526-f3495bc9fd35" width="500" controls></video><br>
+      <video src="https://github.com/user-attachments/assets/bf17fbb1-a3ef-4013-8526-f3495bc9fd35"  controls></video><br>
     </td>
-    <td width="500" align="center" valign="top">
+    <td  align="center" valign="top">
       <b>3D Reasoning</b>
-      <video src="https://github.com/user-attachments/assets/5eb4b5c8-5175-4751-91d6-7e936a47d8a2" width="500" controls></video><br>
+      <video src="https://github.com/user-attachments/assets/5eb4b5c8-5175-4751-91d6-7e936a47d8a2"  controls></video><br>
     </td>
-    <td width="500" align="center" valign="top">
+    </tr>
+  <tr>
+    <td  align="center" valign="top">
       <b>3D Planning</b>
-      <video src="https://github.com/user-attachments/assets/c41d3267-03b2-43f6-9102-261172c680b1" width="500" controls></video><br>
+      <video src="https://github.com/user-attachments/assets/c41d3267-03b2-43f6-9102-261172c680b1"  controls></video><br>
     </td>
   </tr>
 </table>
