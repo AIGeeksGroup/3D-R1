@@ -17,7 +17,7 @@ https://github.com/user-attachments/assets/45fa0d43-d30e-4211-9194-defd60d8f9c4
 ## ✏️ Citation
 If you find our code or paper helpful, please consider starring ⭐ us and citing:
 ```bibtex
-@article{huang20253d-r1,
+@article{huang20253dr1,
   title={3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding},
   author={Huang, Ting and Zhang, Zeyu and Tang, Hao},
   journal={arXiv preprint arXiv:2507.23478},
