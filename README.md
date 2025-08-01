@@ -14,6 +14,18 @@ This is the official repository for the paper:
 
 https://github.com/user-attachments/assets/45fa0d43-d30e-4211-9194-defd60d8f9c4
 
+## ✏️ Citation
+If you find our code or paper helpful, please consider starring ⭐ us and citing:
+```bibtex
+@article{huang20253d-r1,
+  title={3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding},
+  author={Huang, Ting and Zhang, Zeyu and Tang, Hao},
+  journal={arXiv preprint arXiv:2507.23478},
+  year={2025}
+}
+```
+---
+
 ## 🏃 Intro 3D-R1
 3D-R1 is an open-source **generalist** model that enhances the reasoning of 3D VLMs for unified scene understanding.
 
@@ -84,21 +96,6 @@ SFT on Scene-30K as a cold-start:
 ```bash
 bash scripts/train.generalist.sh
 ```
-
-
-
-## ✏️ Citation
-If you find our code or paper helpful, please consider starring ⭐ us and citing:
-```bibtex
-@article{huang20253d-r1,
-  title={3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding},
-  author={Huang, Ting and Zhang, Zeyu and Tang, Hao},
-  journal={arXiv preprint arXiv:2507.23478},
-  year={2025}
-}
-```
-
----
 
 ## 👩🏻‍💻 Case Study
 
