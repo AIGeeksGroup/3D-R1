@@ -9,6 +9,11 @@ This is the official repository for the paper:
 >
 > ### [Paper](https://arxiv.org/abs/2507.23478) | [Website](https://aigeeksgroup.github.io/3D-R1) | [Data](https://huggingface.co/datasets/AIGeeksGroup/Scene-30K) | [Models](https://huggingface.co/AIGeeksGroup/3D-R1) | [HF Paper]()
 
+> [!NOTE]
+> 💪 This and following visualizations show the **zero-shot** results of 3D-R1 in various complex scenes, demonstrating its incredible generalizability and state-of-the-art performance.
+
+https://github.com/user-attachments/assets/45fa0d43-d30e-4211-9194-defd60d8f9c4
+
 ## ✏️ Citation
 ```
 @article{huang20253d-r1,
