@@ -7,9 +7,17 @@ This is the official repository for the paper:
 >
 > \*Equal contribution. <sup>†</sup>Project lead. <sup>#</sup>Corresponding author.
 >
-> ### [Paper]() | [Website](https://aigeeksgroup.github.io/3D-R1) | [Data](https://huggingface.co/datasets/AIGeeksGroup/Scene-30K) | [Models](https://huggingface.co/AIGeeksGroup/3D-R1) | [Papers With Code]() | [HF Paper]()
+> ### [Paper](https://arxiv.org/abs/2507.23478) | [Website](https://aigeeksgroup.github.io/3D-R1) | [Data](https://huggingface.co/datasets/AIGeeksGroup/Scene-30K) | [Models](https://huggingface.co/AIGeeksGroup/3D-R1) | [HF Paper]()
 
-
+## ✏️ Citation
+```
+@article{huang20253d-r1,
+  title={3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding},
+  author={Huang, Ting and Zhang, Zeyu and Tang, Hao},
+  journal={arXiv preprint arXiv:2507.23478},
+  year={2025}
+}
+```
 
 ## 😘 Acknowledgement
 We thank the authors of [Qwen](https://github.com/QwenLM/Qwen), [LSceneLLM](https://github.com/Hoyyyaard/LSceneLLM), [ARKit](https://github.com/apple/ARKitScenes), and [DeepSeek-Math](https://github.com/deepseek-ai/DeepSeek-Math) for their open-source code.
