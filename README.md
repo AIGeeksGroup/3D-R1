@@ -26,7 +26,7 @@ https://github.com/user-attachments/assets/45fa0d43-d30e-4211-9194-defd60d8f9c4
 
 ---
 
-### 👩🏻‍💻 Case Study
+## 👩🏻‍💻 Case Study
 
 <table>
   <tr>
