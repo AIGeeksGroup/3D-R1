@@ -1,4 +1,4 @@
-# <img src="./3dr1_logo.png" alt="logo" width="20"/>3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding
+# <img src="./assets/3dr1_logo.png" alt="logo" width="20"/>3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding
 
 This is the official repository for the paper:
 > **3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding**
@@ -88,7 +88,8 @@ bash scripts/train.generalist.sh
 
 
 ## ✏️ Citation
-```
+If you find our code or paper helpful, please consider starring ⭐ us and citing:
+```bibtex
 @article{huang20253d-r1,
   title={3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding},
   author={Huang, Ting and Zhang, Zeyu and Tang, Hao},
