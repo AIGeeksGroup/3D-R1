@@ -47,6 +47,7 @@ Extensive experiments demonstrate that 3D-R1 delivers an average improvement of 
 - [x] Upload our paper to arXiv and build project pages.
 - [x] Upload the code.
 - [x] Release Scene-30K dataset. (see [Scene-30K](https://huggingface.co/datasets/AIGeeksGroup/Scene-30K))
+- [ ] Upload visualization script.
 - [ ] Add a demo on huggingface.
 
 ## ⚡ Quick Start
