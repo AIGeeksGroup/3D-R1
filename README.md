@@ -44,6 +44,11 @@ Extensive experiments demonstrate that 3D-R1 delivers an average improvement of 
 
 ## TODO List
 
+> [!IMPORTANT] 
+> **General Response to Visualization:**
+> We acknowledge that some users are seeking detailed visualization code. Regarding the bounding box drift issue in the visualization, we are currently fixing it and will update the visualization results accordingly, along with releasing a detailed visualization tutorial.
+
+
 - [x] Upload our paper to arXiv and build project pages.
 - [x] Upload the code.
 - [x] Release Scene-30K dataset. (see [Scene-30K](https://huggingface.co/datasets/AIGeeksGroup/Scene-30K))
