@@ -40,6 +40,7 @@ Extensive experiments demonstrate that 3D-R1 delivers an average improvement of 
 ![image](./assets/structure.png)
 
 ## 📰 News
+<b>2025/08/03:</b> 🔔 Our paper has been promoted by <a href="https://mp.weixin.qq.com/s/3iLqHzfP8IEv4m5ln6_PQQ"><b>Learn AI with us</b></a>.
 <b>2025/08/01:</b> 📣 Our paper has been promoted by <a href="https://zhuanlan.zhihu.com/p/1934643503331256268"><b>52CV</b></a>.
 
 ## TODO List
@@ -52,7 +53,8 @@ Extensive experiments demonstrate that 3D-R1 delivers an average improvement of 
 - [x] Upload our paper to arXiv and build project pages.
 - [x] Upload the code.
 - [x] Release Scene-30K dataset. (see [Scene-30K](https://huggingface.co/datasets/AIGeeksGroup/Scene-30K))
-- [ ] Upload visualization script.
+- [ ] Release RL part code.
+- [ ] Release visualization script.
 - [ ] Add a demo on huggingface.
 
 ## ⚡ Quick Start
