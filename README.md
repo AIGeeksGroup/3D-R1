@@ -1,4 +1,4 @@
-# <img src="./assets/3dr1_logo.png" alt="logo" width="20"/>3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding
+# <img src="./assets/3dr1_logo.png" alt="logo" width="25"/> 3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding
 
 This is the official repository for the paper:
 > **3D-R1: Enhancing Reasoning in 3D VLMs for Unified Scene Understanding**
