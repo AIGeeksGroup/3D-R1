@@ -40,6 +40,8 @@ Extensive experiments demonstrate that 3D-R1 delivers an average improvement of 
 ![image](./assets/structure.png)
 
 ## 📰 News
+<b>2025/08/07:</b> 🎉 Our paper has been shared by <a href="https://mp.weixin.qq.com/s/Feh7S4AJOmxzDx0gRlYyAw"><b>Deep Blue AI</b></a>.
+
 <b>2025/08/05:</b> 🎉 Our paper has been shared by <a href="https://x.com/_akhaliq/status/1952533689583181932"><b>AK</b></a>.
 
 <b>2025/08/04:</b> 📌 Our paper has been promoted by <a href="https://mp.weixin.qq.com/s/TgFY_hZcA7tKX163kztHXg"><b>AIxiv</b></a>.
