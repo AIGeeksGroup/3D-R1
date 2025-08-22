@@ -64,6 +64,15 @@ Extensive experiments demonstrate that 3D-R1 delivers an average improvement of 
 - [ ] Release visualization script.
 - [ ] Add a demo on huggingface.
 
+
+## ![YouTube](https://img.shields.io/badge/YouTube-%23FF0000.svg?style=for-the-badge&logo=YouTube&logoColor=white) YouTube Video
+
+>[!NOTE]
+> If you’d like to learn more about our paper, be sure to check out this [**youtube video**](https://youtu.be/P3jPg6MwLOM) by @AIResearchRoundup.
+
+[![Watch the video](https://img.youtube.com/vi/P3jPg6MwLOM/maxresdefault.jpg)](https://youtu.be/P3jPg6MwLOM)
+
+
 ## ⚡ Quick Start
 ### Environment Setup
 
