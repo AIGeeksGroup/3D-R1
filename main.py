@@ -125,6 +125,10 @@ def make_args_parser():
     parser.add_argument("--image_encoder_dim", default=256, type=int,
                        help="Image encoder output dimension")
     
+    ##### Model Type Configuration #####
+    parser.add_argument("--use_multimodal_model", default=False, action="store_true",
+                       help="Use Qwen2.5-VL-7B as multimodal model instead of causal LM")
+    
     ##### LoRA Configuration #####
     parser.add_argument("--use_lora", default=False, action="store_true",
                        help="Enable LoRA for efficient fine-tuning")

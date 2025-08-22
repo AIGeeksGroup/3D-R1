@@ -7,7 +7,8 @@ import re
 from collections import OrderedDict
 from transformers import (
     AutoTokenizer,
-    AutoModelForCausalLM, 
+    AutoModelForCausalLM,
+    AutoModelForVision2Seq,
     InstructBlipQFormerModel,
     InstructBlipQFormerConfig
 )
@@ -114,13 +115,40 @@ class captioner(nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained(args.vocab)
         self.nvocabs = len(self.tokenizer)
         
-        ## caption generation cores
-        self.transformer = AutoModelForCausalLM.from_pretrained(
-            args.vocab,
-            torch_dtype=self.dtype
-        )
+        ## Model type detection and initialization
+        self.use_multimodal_model = getattr(args, 'use_multimodal_model', False)
+        
+        if self.use_multimodal_model:
+            # Use Qwen2.5-VL-7B as a multimodal model
+            try:
+                self.transformer = AutoModelForVision2Seq.from_pretrained(
+                    args.vocab,
+                    torch_dtype=self.dtype,
+                    trust_remote_code=True
+                )
+                print(f"Loaded multimodal model: {args.vocab}")
+            except Exception as e:
+                print(f"Failed to load as multimodal model: {e}")
+                print("Falling back to causal LM mode")
+                self.use_multimodal_model = False
+                self.transformer = AutoModelForCausalLM.from_pretrained(
+                    args.vocab,
+                    torch_dtype=self.dtype,
+                    trust_remote_code=True
+                )
+        else:
+            # Use as causal language model (original approach)
+            self.transformer = AutoModelForCausalLM.from_pretrained(
+                args.vocab,
+                torch_dtype=self.dtype,
+                trust_remote_code=True
+            )
+            print(f"Loaded causal LM: {args.vocab}")
+        
         self.n_embd = self.transformer.config.hidden_size
         self._llm_total_layers = getattr(self.transformer.config, "num_hidden_layers", None)
+        
+        # Add special tokens if not already present
         if not all(t in self.tokenizer.get_vocab() for t in SPECIAL_TOKENS):
             self.tokenizer.add_tokens(SPECIAL_TOKENS, special_tokens=True)
             self.transformer.resize_token_embeddings(len(self.tokenizer))
@@ -128,8 +156,16 @@ class captioner(nn.Module):
         # Apply LoRA if enabled and PEFT is available
         self.use_lora = getattr(args, 'use_lora', False)
         if self.use_lora and PEFT_AVAILABLE:
+            # Choose task type based on model type
+            if self.use_multimodal_model:
+                task_type = TaskType.VISION_2_SEQ
+                print("Using LoRA for multimodal model (Vision2Seq)")
+            else:
+                task_type = TaskType.CAUSAL_LM
+                print("Using LoRA for causal language model")
+            
             lora_config = LoraConfig(
-                task_type=TaskType.CAUSAL_LM,
+                task_type=task_type,
                 inference_mode=False,
                 r=getattr(args, 'lora_r', 16),
                 lora_alpha=getattr(args, 'lora_alpha', 32),
@@ -413,10 +449,23 @@ class captioner(nn.Module):
         attention_mask = torch.cat((prefix_mask, input_mask), dim=1)
         
         # ---- calculate transformer loss
-        outputs = self.transformer(
-            inputs_embeds=inputs_embeds.to(self.dtype),
-            attention_mask=attention_mask.to(self.dtype),
-        )
+        if self.use_multimodal_model:
+            # For multimodal models, we need to handle visual inputs differently
+            # Extract visual features from the prefix tokens
+            visual_features = prefix_tokens[:, :self.nlatent_query, :]  # Use latent queries as visual features
+            
+            outputs = self.transformer(
+                input_ids=input_ids,
+                attention_mask=input_mask.to(self.dtype),
+                pixel_values=visual_features.to(self.dtype),  # Use as pseudo pixel values
+                return_dict=True
+            )
+        else:
+            # Original causal LM approach
+            outputs = self.transformer(
+                inputs_embeds=inputs_embeds.to(self.dtype),
+                attention_mask=attention_mask.to(self.dtype),
+            )
         
         # Main caption loss
         caption_loss = self.loss_caption(
