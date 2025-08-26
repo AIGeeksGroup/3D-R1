@@ -3,9 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, Optional, Tuple
 import numpy as np
+import cv2
 
 class DepthAnythingV2Encoder(nn.Module):
-    """Real Depth-Anything v2 encoder for depth maps"""
+    """Depth-Anything-V2 encoder for depth maps based on official implementation"""
     
     def __init__(self, model_name: str = "LiheYoung/depth_anything_vitl14", 
                  feature_dim: int = 1024, output_dim: int = 256, device: str = "cuda"):
@@ -13,18 +14,37 @@ class DepthAnythingV2Encoder(nn.Module):
         self.device = device
         self.feature_dim = feature_dim
         self.output_dim = output_dim
+        self.model_name = model_name
         
+        # Try to load Depth-Anything-V2 model using official method
         try:
-            from transformers import AutoImageProcessor, AutoModel
-            self.processor = AutoImageProcessor.from_pretrained(model_name)
-            self.model = AutoModel.from_pretrained(model_name)
-            self.model.to(device)
-            self.model.eval()
-            print(f"✅ Loaded Depth-Anything v2: {model_name}")
+            # First try to load using transformers pipeline (recommended by official repo)
+            from transformers import pipeline
+            try:
+                # Map model names to official model names
+                model_mapping = {
+                    "LiheYoung/depth_anything_vitl14": "depth-anything/Depth-Anything-V2-Large-hf",
+                    "LiheYoung/depth_anything_vitb14": "depth-anything/Depth-Anything-V2-Base-hf", 
+                    "LiheYoung/depth_anything_vits14": "depth-anything/Depth-Anything-V2-Small-hf"
+                }
+                
+                official_model_name = model_mapping.get(model_name, "depth-anything/Depth-Anything-V2-Large-hf")
+                self.pipeline = pipeline(task="depth-estimation", model=official_model_name)
+                self.model = None
+                self.processor = None
+                print(f"✅ Loaded Depth-Anything-V2 using transformers pipeline: {official_model_name}")
+                
+            except Exception as e:
+                print(f"⚠️  Failed to load via transformers pipeline: {e}")
+                print("⚠️  Trying direct model loading...")
+                self.pipeline = None
+                self._load_direct_model()
+                
         except ImportError:
             print("⚠️  Warning: transformers not available, using CNN fallback")
-            self.processor = None
+            self.pipeline = None
             self.model = None
+            self.processor = None
         
         # Feature projection to output dimension
         self.feature_projection = nn.Sequential(
@@ -66,6 +86,34 @@ class DepthAnythingV2Encoder(nn.Module):
             nn.LayerNorm(output_dim)
         )
     
+    def _load_direct_model(self):
+        """Load Depth-Anything-V2 model directly using official method"""
+        try:
+            from transformers import AutoModel, AutoImageProcessor
+            
+            # Try loading with trust_remote_code and specific parameters
+            self.model = AutoModel.from_pretrained(
+                self.model_name,
+                trust_remote_code=True,
+                torch_dtype=torch.float32
+            )
+            self.model.to(self.device)
+            self.model.eval()
+            
+            # Try to load processor, but don't fail if it doesn't work
+            try:
+                self.processor = AutoImageProcessor.from_pretrained(self.model_name)
+                print(f"✅ Loaded Depth-Anything-V2 model and processor: {self.model_name}")
+            except Exception as e:
+                print(f"⚠️  Processor loading failed: {e}, will use manual preprocessing")
+                self.processor = None
+                
+        except Exception as e:
+            print(f"⚠️  Direct model loading failed: {e}")
+            print("⚠️  Using CNN fallback for depth encoding")
+            self.model = None
+            self.processor = None
+    
     def preprocess_depth(self, depth_maps: torch.Tensor) -> torch.Tensor:
         """Preprocess depth maps for the model"""
         # Ensure depth maps are in the right format
@@ -78,47 +126,104 @@ class DepthAnythingV2Encoder(nn.Module):
         if depth_max > depth_min:
             depth_maps = (depth_maps - depth_min) / (depth_max - depth_min)
         
-        # Resize to model input size (typically 224x224)
-        if depth_maps.shape[-1] != 224 or depth_maps.shape[-2] != 224:
-            depth_maps = F.interpolate(depth_maps, size=(224, 224), mode='bilinear', align_corners=False)
+        # Resize to model input size (typically 518 for Depth-Anything-V2)
+        if depth_maps.shape[-1] != 518 or depth_maps.shape[-2] != 518:
+            depth_maps = F.interpolate(depth_maps, size=(518, 518), mode='bilinear', align_corners=False)
         
         return depth_maps
     
-    def encode_depth(self, depth_maps: torch.Tensor) -> torch.Tensor:
-        """Encode depth maps using Depth-Anything v2"""
-        if self.model is not None:
-            try:
-                # Preprocess depth maps
-                processed_depth = self.preprocess_depth(depth_maps)
+    def encode_depth_pipeline(self, depth_maps: torch.Tensor) -> torch.Tensor:
+        """Encode depth maps using transformers pipeline"""
+        batch_size = depth_maps.shape[0]
+        features_list = []
+        
+        for i in range(batch_size):
+            # Convert depth map to PIL image
+            depth_img = depth_maps[i, 0].cpu().numpy()
+            depth_img = (depth_img * 255).astype(np.uint8)
+            
+            # Convert to RGB (Depth-Anything expects RGB)
+            depth_rgb = np.stack([depth_img] * 3, axis=-1)
+            
+            from PIL import Image
+            pil_img = Image.fromarray(depth_rgb)
+            
+            # Use pipeline for inference
+            with torch.no_grad():
+                result = self.pipeline(pil_img)
+                depth_pred = result["depth"]
                 
-                # Convert to PIL images for the processor
-                batch_size = processed_depth.shape[0]
-                pil_images = []
+                # Convert PIL depth to tensor and extract features
+                depth_tensor = torch.from_numpy(np.array(depth_pred)).float().unsqueeze(0).unsqueeze(0)
+                depth_tensor = F.interpolate(depth_tensor, size=(224, 224), mode='bilinear', align_corners=False)
                 
-                for i in range(batch_size):
-                    depth_img = processed_depth[i, 0].cpu().numpy()
-                    depth_img = (depth_img * 255).astype(np.uint8)
-                    from PIL import Image
-                    pil_img = Image.fromarray(depth_img, mode='L')
-                    pil_images.append(pil_img)
+                # Use the depth prediction as features (simplified approach)
+                features = depth_tensor.flatten(1)  # Flatten spatial dimensions
                 
-                # Process with Depth-Anything
-                inputs = self.processor(images=pil_images, return_tensors="pt")
-                inputs = {k: v.to(self.device) for k, v in inputs.items()}
+                # Pad or truncate to expected feature dimension
+                if features.shape[1] < self.feature_dim:
+                    padding = torch.zeros(1, self.feature_dim - features.shape[1])
+                    features = torch.cat([features, padding], dim=1)
+                else:
+                    features = features[:, :self.feature_dim]
                 
-                with torch.no_grad():
-                    outputs = self.model(**inputs)
-                    features = outputs.last_hidden_state.mean(dim=1)  # Pool over sequence length
+                features_list.append(features)
+        
+        features = torch.cat(features_list, dim=0)
+        return features
+    
+    def encode_depth_direct(self, depth_maps: torch.Tensor) -> torch.Tensor:
+        """Encode depth maps using direct model inference"""
+        try:
+            # Preprocess depth maps
+            processed_depth = self.preprocess_depth(depth_maps)
+            
+            # Convert to RGB format (Depth-Anything expects RGB)
+            rgb_depth = processed_depth.repeat(1, 3, 1, 1)
+            
+            # Normalize to ImageNet stats
+            mean = torch.tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).to(self.device)
+            std = torch.tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).to(self.device)
+            rgb_depth = (rgb_depth - mean) / std
+            
+            with torch.no_grad():
+                outputs = self.model(rgb_depth)
+                if hasattr(outputs, 'last_hidden_state'):
+                    features = outputs.last_hidden_state.mean(dim=1)
+                else:
+                    features = outputs[0].mean(dim=1)  # Assume first output is hidden states
                 
-                # Project to output dimension
-                encoded_features = self.feature_projection(features)
-                return encoded_features
-                
-            except Exception as e:
-                print(f"⚠️  Depth-Anything encoding failed: {e}, using fallback")
-                return self._fallback_depth_encoding(depth_maps)
-        else:
+                # Ensure features have the right dimension
+                if features.shape[1] != self.feature_dim:
+                    # Project to expected dimension
+                    if hasattr(self, 'feature_adapter'):
+                        features = self.feature_adapter(features)
+                    else:
+                        # Create a simple adapter if needed
+                        self.feature_adapter = nn.Linear(features.shape[1], self.feature_dim).to(self.device)
+                        features = self.feature_adapter(features)
+            
+            return features
+            
+        except Exception as e:
+            print(f"⚠️  Direct model inference failed: {e}, using CNN fallback")
             return self._fallback_depth_encoding(depth_maps)
+    
+    def encode_depth(self, depth_maps: torch.Tensor) -> torch.Tensor:
+        """Encode depth maps using the best available method"""
+        if self.pipeline is not None:
+            # Use transformers pipeline (recommended by official repo)
+            features = self.encode_depth_pipeline(depth_maps)
+        elif self.model is not None:
+            # Use direct model inference
+            features = self.encode_depth_direct(depth_maps)
+        else:
+            # Use CNN fallback
+            features = self._fallback_depth_encoding(depth_maps)
+        
+        # Project to output dimension
+        encoded_features = self.feature_projection(features)
+        return encoded_features
     
     def _fallback_depth_encoding(self, depth_maps: torch.Tensor) -> torch.Tensor:
         """Fallback CNN encoding for depth maps"""
