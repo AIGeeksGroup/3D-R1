@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from datasets.scannet import BASE
+from dataset.scannet import BASE
 
 class model_config:
     

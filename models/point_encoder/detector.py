@@ -9,7 +9,7 @@ from third_party.pointnet2.pointnet2_utils import furthest_point_sample
 
 from utils.misc import huber_loss
 from utils.pc_util import scale_points, shift_scale_points
-from datasets.scannet import BASE
+from dataset.scannet import BASE
 from typing import Dict
 
 from models.point_encoder.config import model_config

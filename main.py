@@ -6,7 +6,7 @@ from collections import OrderedDict
 
 from engine import do_train
 from models.model_general import CaptionNet
-from datasets.scannet_base_dataset import DatasetConfig
+from dataset.scannet_base_dataset import DatasetConfig
 from torch.multiprocessing import set_start_method
 
 from utils.io import resume_if_possible

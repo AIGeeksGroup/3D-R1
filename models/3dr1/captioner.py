@@ -18,8 +18,8 @@ try:
 except ImportError:
     PEFT_AVAILABLE = False
     print("Warning: PEFT not available. LoRA will not be used.")
-from models.3dr1.generation_utils import generation
-from models.3dr1.position_embedding import PositionEmbeddingCoordsSine
+from .generation_utils import generation
+from .position_embedding import PositionEmbeddingCoordsSine
 
 from utils.box_util import box3d_iou_batch_tensor
 
