@@ -34,4 +34,9 @@ python main.py \
     --use_lora \
     --lora_r 16 \
     --lora_alpha 32 \
-    --lora_dropout 0.1
+    --lora_dropout 0.1 \
+    --use_additional_encoders \
+    --use_depth \
+    --use_image \
+    --depth_encoder_dim 256 \
+    --image_encoder_dim 256

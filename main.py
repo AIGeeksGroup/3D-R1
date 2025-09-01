@@ -189,7 +189,8 @@ def build_dataset(args):
                 use_normal=args.use_normal,
                 use_multiview=args.use_multiview,
                 use_height=args.use_height,
-                augment=True
+                augment=True,
+                use_additional_encoders=args.use_additional_encoders
             )
         )
         datasets['test'].append(
@@ -201,7 +202,8 @@ def build_dataset(args):
                 use_normal=args.use_normal,
                 use_multiview=args.use_multiview,
                 use_height=args.use_height,
-                augment=False
+                augment=False,
+                use_additional_encoders=args.use_additional_encoders
             )
         )
     datasets['train'] = torch.utils.data.ConcatDataset(train_datasets)

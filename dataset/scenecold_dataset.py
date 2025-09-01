@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 from transformers import AutoTokenizer
 from eval_utils.evaluate_cold import evaluate
 
-from datasets.scannet_base_dataset import ScanNetBaseDataset, DatasetConfig, BASE
+from dataset.scannet_base_dataset import ScanNetBaseDataset, DatasetConfig, BASE
 
 SPECIAL_TOKENS = ["<think>", "</think>", "<answer>", "</answer>"]
 
@@ -32,6 +32,7 @@ class Dataset(ScanNetBaseDataset):
             use_height=use_height,
             augment=augment,
             use_random_cuboid=False,
+            use_additional_encoders=getattr(args, 'use_additional_encoders', False),
         )
 
         self.task_name = 'cold-start'
@@ -40,7 +41,7 @@ class Dataset(ScanNetBaseDataset):
         self.max_prompts = 1
         assert split_set in ["train", "val"]
         ann_path = os.path.join(
-            BASE,"data","Scene30K",f"Scene-R1-cold-qa-1-{split_set}.jsonl",
+            BASE,"data","Scene30K",f"Scene-30K.jsonl",
         )
         scene_path = os.path.join(BASE, "data", "scene_caption.json")
         self.scene_description = json.load(open(scene_path,'r'))
@@ -49,16 +50,13 @@ class Dataset(ScanNetBaseDataset):
         print(f"[SceneR1Cold-QA-PC]: "
               f"{len(self.annotations)} Q&A  from {len(self.scan_names)} scans")
 
-        # === 2. Tokenizer 准备 ===
         self.tokenizer = AutoTokenizer.from_pretrained(args.vocab)
-        # self.tokenizer.pad_token = self.tokenizer.eos_token
-        # self.tokenizer.padding_side = "right"
+        
         if not all(tok in self.tokenizer.vocab for tok in SPECIAL_TOKENS):
             self.tokenizer.add_tokens(SPECIAL_TOKENS, special_tokens=True)
 
         self.qtokenizer = AutoTokenizer.from_pretrained(args.qformer_vocab)
-        # self.qtokenizer.pad_token = self.tokenizer.eos_token
-        # self.qtokenizer.padding_side = "right"
+        
         if not all(tok in self.qtokenizer.vocab for tok in SPECIAL_TOKENS):
             self.qtokenizer.add_tokens(SPECIAL_TOKENS, special_tokens=True)
 

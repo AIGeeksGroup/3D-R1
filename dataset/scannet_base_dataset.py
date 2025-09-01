@@ -148,6 +148,7 @@ class ScanNetBaseDataset(Dataset):
         augment=False,
         use_random_cuboid=True,
         random_cuboid_min_points=30000,
+        use_additional_encoders=False,
     ):
 
         self.dataset_config = dataset_config
@@ -157,6 +158,33 @@ class ScanNetBaseDataset(Dataset):
         meta_data_dir = DATASET_METADATA_DIR
 
         self.data_path = root_dir
+        self.split_set = split_set
+        self.num_points = num_points
+        self.use_color = use_color
+        self.use_normal = use_normal
+        self.use_multiview = use_multiview
+        self.use_height = use_height
+        self.augment = augment
+        self.use_random_cuboid = use_random_cuboid
+        self.use_additional_encoders = use_additional_encoders
+        self.random_cuboid_augmentor = RandomCuboid(min_points=random_cuboid_min_points)
+        self.center_normalizing_range = [
+            np.zeros((1, 3), dtype=np.float32),
+            np.ones((1, 3), dtype=np.float32),
+        ]
+        
+        # Load scan names
+        self.scan_names = self._load_scan_names()
+        
+        self.multiview_data = {}
+
+        # Initialize additional encoders data storage
+        if self.use_additional_encoders:
+            self.image_data = {}
+            self.depth_data = {}
+    
+    def _load_scan_names(self):
+        """Load scan names based on split_set"""
         all_scan_names = list(
             set(
                 [
@@ -166,39 +194,23 @@ class ScanNetBaseDataset(Dataset):
                 ]
             )
         )
-        if 'test' in split_set: 
-            split_set = 'test'
         
-        if split_set == "all":
-            self.scan_names = all_scan_names
-        elif split_set in ["train", "val", "test"]:
-            split_filenames = os.path.join(meta_data_dir, f"scannetv2_{split_set}.txt")
-                
+        if self.split_set == "all":
+            return all_scan_names
+        elif self.split_set in ["train", "val", "test"]:
+            split_filenames = os.path.join(DATASET_METADATA_DIR, f"scannetv2_{self.split_set}.txt")
+            
             with open(split_filenames, "r") as f:
-                self.scan_names = f.read().splitlines()
-            # remove unavailiable scans
-            num_scans = len(self.scan_names)
-            self.scan_names = [
-                sname for sname in self.scan_names if sname in all_scan_names
+                scan_names = f.read().splitlines()
+            # remove unavailable scans
+            num_scans = len(scan_names)
+            scan_names = [
+                sname for sname in scan_names if sname in all_scan_names
             ]
-            print(f"kept {len(self.scan_names)} scans out of {num_scans}")
+            print(f"kept {len(scan_names)} scans out of {num_scans}")
+            return scan_names
         else:
-            raise ValueError(f"Unknown split name {split_set}")
-
-        self.num_points = num_points
-        self.use_color = use_color
-        self.use_normal = use_normal
-        self.use_multiview = use_multiview
-        self.use_height = use_height
-        self.augment = augment
-        self.use_random_cuboid = use_random_cuboid
-        self.random_cuboid_augmentor = RandomCuboid(min_points=random_cuboid_min_points)
-        self.center_normalizing_range = [
-            np.zeros((1, 3), dtype=np.float32),
-            np.ones((1, 3), dtype=np.float32),
-        ]
-        
-        self.multiview_data = {}
+            raise ValueError(f"Unknown split name {self.split_set}")
 
     def __len__(self):
         return len(self.scan_names)
@@ -370,6 +382,55 @@ class ScanNetBaseDataset(Dataset):
         
         ret_dict['vote_label'] = point_votes.astype(np.float32)
         ret_dict['vote_label_mask'] = point_votes_mask.astype(np.int64)
+        
+        # Load additional modal data if enabled
+        if self.use_additional_encoders:
+            # Load images if available
+            image_path = os.path.join(self.data_path, scan_name, "images")
+            if os.path.exists(image_path):
+                try:
+                    # Load first image as representative (you can modify this to load multiple views)
+                    image_files = [f for f in os.listdir(image_path) if f.endswith(('.jpg', '.png', '.jpeg'))]
+                    if image_files:
+                        import cv2
+                        img = cv2.imread(os.path.join(image_path, image_files[0]))
+                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                        img = cv2.resize(img, (224, 224))  # Resize to standard size
+                        img = img.astype(np.float32) / 255.0  # Normalize to [0, 1]
+                        ret_dict["images"] = img.transpose(2, 0, 1)  # HWC to CHW
+                    else:
+                        ret_dict["images"] = np.zeros((3, 224, 224), dtype=np.float32)
+                except Exception as e:
+                    print(f"Warning: Failed to load image for {scan_name}: {e}")
+                    ret_dict["images"] = np.zeros((3, 224, 224), dtype=np.float32)
+            else:
+                ret_dict["images"] = np.zeros((3, 224, 224), dtype=np.float32)
+            
+            # Load depth maps if available
+            depth_path = os.path.join(self.data_path, scan_name, "depth")
+            if os.path.exists(depth_path):
+                try:
+                    # Load first depth map as representative
+                    depth_files = [f for f in os.listdir(depth_path) if f.endswith(('.png', '.npy'))]
+                    if depth_files:
+                        if depth_files[0].endswith('.npy'):
+                            depth = np.load(os.path.join(depth_path, depth_files[0]))
+                        else:
+                            import cv2
+                            depth = cv2.imread(os.path.join(depth_path, depth_files[0]), cv2.IMREAD_ANYDEPTH)
+                        
+                        # Normalize depth to [0, 1] range
+                        if depth.max() > 0:
+                            depth = depth / depth.max()
+                        depth = cv2.resize(depth, (224, 224))
+                        ret_dict["depth_maps"] = depth.astype(np.float32)
+                    else:
+                        ret_dict["depth_maps"] = np.zeros((224, 224), dtype=np.float32)
+                except Exception as e:
+                    print(f"Warning: Failed to load depth map for {scan_name}: {e}")
+                    ret_dict["depth_maps"] = np.zeros((224, 224), dtype=np.float32)
+            else:
+                ret_dict["depth_maps"] = np.zeros((224, 224), dtype=np.float32)
         
         return ret_dict
 

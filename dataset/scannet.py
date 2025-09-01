@@ -1,4 +1,4 @@
-from datasets.scannet_base_dataset import BASE, DatasetConfig, ScanNetBaseDataset
+from dataset.scannet_base_dataset import BASE, DatasetConfig, ScanNetBaseDataset
 from eval_utils.evaluate_det import evaluate
 
 class Dataset(ScanNetBaseDataset):
@@ -26,6 +26,7 @@ class Dataset(ScanNetBaseDataset):
             augment=augment,
             use_random_cuboid=False,
             random_cuboid_min_points=None,
+            use_additional_encoders=getattr(args, 'use_additional_encoders', False),
         )
         
         self.eval_func = evaluate

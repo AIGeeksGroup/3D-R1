@@ -9,6 +9,7 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM,
     AutoModelForVision2Seq,
+    AutoProcessor,
     InstructBlipQFormerModel,
     InstructBlipQFormerConfig
 )
@@ -119,14 +120,24 @@ class captioner(nn.Module):
         self.use_multimodal_model = getattr(args, 'use_multimodal_model', False)
         
         if self.use_multimodal_model:
-            # Use Qwen2.5-VL-7B as a multimodal model
+            # Prefer Vision-Language models like Qwen2.5-VL-7B when enabled
             try:
+                # Load processor when available (e.g., Qwen2.5-VL)
+                try:
+                    self.processor = AutoProcessor.from_pretrained(
+                        args.vocab,
+                        trust_remote_code=True
+                    )
+                except Exception as e_proc:
+                    self.processor = None
+                    print(f"Warning: Failed to load processor for {args.vocab}: {e_proc}")
+
                 self.transformer = AutoModelForVision2Seq.from_pretrained(
                     args.vocab,
                     torch_dtype=self.dtype,
                     trust_remote_code=True
                 )
-                print(f"Loaded multimodal model: {args.vocab}")
+                print(f"Loaded multimodal Vision2Seq model: {args.vocab}")
             except Exception as e:
                 print(f"Failed to load as multimodal model: {e}")
                 print("Falling back to causal LM mode")
