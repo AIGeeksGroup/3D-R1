@@ -134,7 +134,7 @@ def build_dataset(args):
     
     train_datasets = []
     for dataset in args.dataset.split(','):
-        dataset_module = importlib.import_module(f'datasets.{dataset}')
+        dataset_module = importlib.import_module(f'dataset.{dataset}')
         train_datasets.append(
             dataset_module.Dataset(
                 args, dataset_config, split_set="train", 

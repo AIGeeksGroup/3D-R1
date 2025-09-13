@@ -25,7 +25,7 @@ python main_rl.py \
     --freeze_detector --freeze_llm \
     --batchsize_per_gpu 2 --ngpus 4 \
     --max_des_len 512 \
-    --max_prompt 1 \
+    --max_prompts 1 \
     --rl_beta 0.1 \
     --rl_lr 1e-5 \
     --rl_num_epochs 4 \

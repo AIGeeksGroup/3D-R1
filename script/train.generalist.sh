@@ -27,7 +27,7 @@ python main.py \
     --freeze_detector --freeze_llm \
     --batchsize_per_gpu 4 --ngpus 4 --base_lr 1e-3 --final_lr 1e-6 \
     --max_des_len 512 \
-    --max_prompt 1 \
+    --max_prompts 1 \
     --enable_dynamic_views \
     --view_selection_weight 0.1 \
     --use_pytorch3d_rendering \
