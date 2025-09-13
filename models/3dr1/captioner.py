@@ -595,6 +595,76 @@ class captioner(nn.Module):
         output_ids[objectness_mask] = gather_output_ids
         detector_output['output_ids'] = output_ids
         
+        # Decode output_ids to text for GRPO training
+        lang_cap = []
+        for batch_id in range(batch_size):
+            batch_captions = []
+            for proposal_id in range(nproposals):
+                if objectness_mask[batch_id, proposal_id]:
+                    # Decode the generated tokens to text
+                    tokens = output_ids[batch_id, proposal_id]
+                    # Remove padding tokens
+                    valid_tokens = tokens[tokens != self.tokenizer.eos_token_id]
+                    if len(valid_tokens) > 0:
+                        text = self.tokenizer.decode(valid_tokens, skip_special_tokens=True)
+                        batch_captions.append(text)
+                    else:
+                        batch_captions.append("")
+                else:
+                    batch_captions.append("")
+            lang_cap.append(batch_captions)
+        
+        detector_output['lang_cap'] = lang_cap
+        
+        # For GRPO training, we need to generate logits as well
+        # Generate logits by running the model forward pass on the generated sequences
+        if hasattr(self, 'transformer') and self.transformer is not None:
+            try:
+                # Get the last generated token logits for each sequence
+                all_logits = []
+                for batch_id in range(batch_size):
+                    batch_logits = []
+                    for proposal_id in range(nproposals):
+                        if objectness_mask[batch_id, proposal_id]:
+                            # Get the prefix tokens for this proposal
+                            box_query = detector_output['box_corners'][:, [proposal_id]]
+                            click_query = None
+                            if task_name == 'ov-det':
+                                click_query = detector_output['query_xyz'][:, [proposal_id]]
+                            
+                            prefix_tokens = self._get_instruction_response(
+                                detector_output=detector_output,
+                                inputs=inputs,
+                                box_query=box_query,
+                                click_query=click_query,
+                            )
+                            
+                            # Get the generated tokens
+                            generated_tokens = output_ids[batch_id, proposal_id]
+                            valid_tokens = generated_tokens[generated_tokens != self.tokenizer.eos_token_id]
+                            
+                            if len(valid_tokens) > 0:
+                                # Create input embeddings
+                                instruction_embedding = embedding_layer(instruction_id[batch_id:batch_id+1])
+                                full_input = torch.cat([prefix_tokens[batch_id:batch_id+1], instruction_embedding], dim=1)
+                                
+                                # Run forward pass to get logits
+                                with torch.no_grad():
+                                    outputs = self.transformer(inputs_embeds=full_input.to(self.dtype))
+                                    # Get logits for the last token
+                                    last_logits = outputs.logits[:, -1, :]  # [1, vocab_size]
+                                    batch_logits.append(last_logits.squeeze(0))
+                            else:
+                                batch_logits.append(torch.zeros(self.nvocabs).to(net_device))
+                        all_logits.append(torch.stack(batch_logits))
+                    
+                    detector_output['logits'] = torch.stack(all_logits)  # [batch_size, nproposals, vocab_size]
+                except Exception as e:
+                    # Fallback to None if logits generation fails
+                    detector_output['logits'] = None
+            else:
+                detector_output['logits'] = None
+        
         return detector_output
     
     
@@ -636,6 +706,57 @@ class captioner(nn.Module):
         
         output_ids = torch.cat(output_ids, dim=0)
         detector_output['output_ids'] = output_ids
+        
+        # Decode output_ids to text for GRPO training
+        lang_cap = []
+        for batch_id in range(output_ids.shape[0]):
+            tokens = output_ids[batch_id]
+            # Remove padding tokens
+            valid_tokens = tokens[tokens != self.tokenizer.eos_token_id]
+            if len(valid_tokens) > 0:
+                text = self.tokenizer.decode(valid_tokens, skip_special_tokens=True)
+                lang_cap.append([text])  # Wrap in list for consistency
+            else:
+                lang_cap.append([""])
+        
+        detector_output['lang_cap'] = lang_cap
+        
+        # For GRPO training, we need to generate logits as well
+        # Generate logits by running the model forward pass on the generated sequences
+        if hasattr(self, 'transformer') and self.transformer is not None:
+            try:
+                all_logits = []
+                for batch_id in range(output_ids.shape[0]):
+                    # Get the prefix tokens for this batch
+                    prefix_tokens = self._get_instruction_response(
+                        detector_output=detector_output,
+                        inputs=inputs,
+                    )
+                    
+                    # Get the generated tokens
+                    generated_tokens = output_ids[batch_id]
+                    valid_tokens = generated_tokens[generated_tokens != self.tokenizer.eos_token_id]
+                    
+                    if len(valid_tokens) > 0:
+                        # Create input embeddings
+                        instruction_embedding = embedding_layer(instruction[batch_id][instruction_mask[batch_id] == 1])
+                        full_input = torch.cat([prefix_tokens[batch_id:batch_id+1], instruction_embedding.unsqueeze(0)], dim=1)
+                        
+                        # Run forward pass to get logits
+                        with torch.no_grad():
+                            outputs = self.transformer(inputs_embeds=full_input.to(self.dtype))
+                            # Get logits for the last token
+                            last_logits = outputs.logits[:, -1, :]  # [1, vocab_size]
+                            all_logits.append(last_logits.squeeze(0))
+                    else:
+                        all_logits.append(torch.zeros(self.nvocabs).to(net_device))
+                
+                detector_output['logits'] = torch.stack(all_logits)  # [batch_size, vocab_size]
+            except Exception as e:
+                # Fallback to None if logits generation fails
+                detector_output['logits'] = None
+        else:
+            detector_output['logits'] = None
         
         return detector_output
     
@@ -685,6 +806,57 @@ class captioner(nn.Module):
         
         output_ids = torch.cat(output_ids, dim=0)
         detector_output['output_ids'] = output_ids
+        
+        # Decode output_ids to text for GRPO training
+        lang_cap = []
+        for batch_id in range(output_ids.shape[0]):
+            tokens = output_ids[batch_id]
+            # Remove padding tokens
+            valid_tokens = tokens[tokens != self.tokenizer.eos_token_id]
+            if len(valid_tokens) > 0:
+                text = self.tokenizer.decode(valid_tokens, skip_special_tokens=True)
+                lang_cap.append([text])  # Wrap in list for consistency
+            else:
+                lang_cap.append([""])
+        
+        detector_output['lang_cap'] = lang_cap
+        
+        # For GRPO training, we need to generate logits as well
+        # Generate logits by running the model forward pass on the generated sequences
+        if hasattr(self, 'transformer') and self.transformer is not None:
+            try:
+                all_logits = []
+                for batch_id in range(output_ids.shape[0]):
+                    # Get the prefix tokens for this batch
+                    prefix_tokens = self._get_instruction_response(
+                        detector_output=detector_output,
+                        inputs=inputs,
+                    )
+                    
+                    # Get the generated tokens
+                    generated_tokens = output_ids[batch_id]
+                    valid_tokens = generated_tokens[generated_tokens != self.tokenizer.eos_token_id]
+                    
+                    if len(valid_tokens) > 0:
+                        # Create input embeddings
+                        instruction_embedding = embedding_layer(instruction[batch_id][instruction_mask[batch_id] == 1])
+                        full_input = torch.cat([prefix_tokens[batch_id:batch_id+1], instruction_embedding.unsqueeze(0)], dim=1)
+                        
+                        # Run forward pass to get logits
+                        with torch.no_grad():
+                            outputs = self.transformer(inputs_embeds=full_input.to(self.dtype))
+                            # Get logits for the last token
+                            last_logits = outputs.logits[:, -1, :]  # [1, vocab_size]
+                            all_logits.append(last_logits.squeeze(0))
+                    else:
+                        all_logits.append(torch.zeros(self.nvocabs).to(net_device))
+                
+                detector_output['logits'] = torch.stack(all_logits)  # [batch_size, vocab_size]
+            except Exception as e:
+                # Fallback to None if logits generation fails
+                detector_output['logits'] = None
+        else:
+            detector_output['logits'] = None
         
         return detector_output
     

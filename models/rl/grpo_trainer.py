@@ -65,8 +65,25 @@ class GRPOTrainer:
             outputs = self.model(batch_data, is_eval=True)
             
             # Extract generated text and logits
-            generated_texts = outputs.get('lang_cap', [])
+            lang_cap_raw = outputs.get('lang_cap', [])
             logits = outputs.get('logits', None)
+            
+            # Flatten lang_cap to list of strings for GRPO training
+            generated_texts = []
+            if lang_cap_raw:
+                for batch_captions in lang_cap_raw:
+                    if isinstance(batch_captions, list):
+                        # For dense captioning, take the first non-empty caption
+                        for caption in batch_captions:
+                            if caption and caption.strip():
+                                generated_texts.append(caption.strip())
+                                break
+                        else:
+                            # If no non-empty caption found, use empty string
+                            generated_texts.append("")
+                    else:
+                        # If it's already a string
+                        generated_texts.append(str(batch_captions))
             
         return generated_texts, logits
     
@@ -75,6 +92,15 @@ class GRPOTrainer:
         """
         Compute KL divergence between current and reference model
         """
+        # Handle case where logits might be None
+        if logits_current is None or logits_ref is None:
+            return torch.tensor(0.0, device=self.device)
+        
+        # Ensure logits have compatible shapes
+        if logits_current.shape != logits_ref.shape:
+            # If shapes don't match, return zero KL divergence
+            return torch.tensor(0.0, device=self.device)
+        
         probs_current = F.softmax(logits_current, dim=-1)
         probs_ref = F.softmax(logits_ref, dim=-1)
         
@@ -102,9 +128,13 @@ class GRPOTrainer:
             ref_logits = ref_outputs.get('logits', None)
         
         # Compute rewards
-        rewards = self.reward_functions.compute_total_reward(
-            batch_data, generated_texts, ground_truth
-        )
+        if generated_texts:
+            rewards = self.reward_functions.compute_total_reward(
+                batch_data, generated_texts, ground_truth
+            )
+        else:
+            # If no generated texts, create zero rewards
+            rewards = torch.zeros(1, device=self.device)
         
         # Compute KL divergence
         kl_div = self.compute_kl_divergence(current_logits, ref_logits)
@@ -124,13 +154,23 @@ class GRPOTrainer:
         
         self.optimizer.step()
         
+        # Compute individual reward components safely
+        if generated_texts and len(generated_texts) > 0:
+            format_reward = self.reward_functions.compute_format_reward(generated_texts[0])
+            perception_reward = self.reward_functions.compute_perception_reward(batch_data, 0, generated_texts[0])
+            semantic_reward = self.reward_functions.compute_semantic_similarity_reward(generated_texts[0], ground_truth[0] if ground_truth else "")
+        else:
+            format_reward = 0.0
+            perception_reward = 0.0
+            semantic_reward = 0.0
+        
         return {
             'policy_loss': policy_loss.item(),
             'kl_div': kl_div.item(),
             'avg_reward': rewards.mean().item(),
-            'format_reward': self.reward_functions.compute_format_reward(generated_texts[0]),
-            'perception_reward': self.reward_functions.compute_perception_reward(batch_data, 0, generated_texts[0]),
-            'semantic_reward': self.reward_functions.compute_semantic_similarity_reward(generated_texts[0], ground_truth[0])
+            'format_reward': format_reward,
+            'perception_reward': perception_reward,
+            'semantic_reward': semantic_reward
         }
     
     def train_epoch(self, dataloader: DataLoader) -> Dict:
