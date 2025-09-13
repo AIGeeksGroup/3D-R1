@@ -112,6 +112,8 @@ def make_args_parser():
                        help="Enable Dynamic View Selection")
     parser.add_argument("--view_selection_weight", default=0.1, type=float,
                        help="Weight for view selection regularization loss")
+    parser.add_argument("--use_pytorch3d_rendering", default=True, action="store_true",
+                       help="Use PyTorch3D for proper 3D rendering (requires PyTorch3D installation)")
     
     ##### Additional Encoders (Point Transformer v3, Depth, Image) #####
     parser.add_argument("--use_additional_encoders", default=False, action="store_true",

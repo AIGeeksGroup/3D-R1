@@ -6,17 +6,26 @@ from typing import Dict, List, Tuple
 import clip
 from PIL import Image
 import torchvision.transforms as transforms
+from .point_renderer import create_point_cloud_renderer
 
 class DynamicViewSelection(nn.Module):
     """Dynamic View Selection for 3D-R1"""
     
-    def __init__(self, device="cuda", num_views=4):
+    def __init__(self, device="cuda", num_views=4, use_pytorch3d=True):
         super().__init__()
         self.device = device
         self.num_views = num_views
         
         # Load CLIP
         self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=device)
+        
+        # Initialize point cloud renderer
+        self.renderer = create_point_cloud_renderer(
+            use_pytorch3d=use_pytorch3d,
+            image_size=224,
+            device=device,
+            render_method="pulsar" if use_pytorch3d else "fallback"
+        )
         
         # Learnable weights
         self.wt = nn.Parameter(torch.tensor(0.3))  # text relevance
@@ -69,7 +78,7 @@ class DynamicViewSelection(nn.Module):
         return utility
     
     def render_candidate_views(self, point_cloud, num_candidates=8):
-        """Render candidate views from point cloud
+        """Render candidate views from point cloud using proper 3D rendering
         
         Args:
             point_cloud: (N, 3) - Point cloud coordinates
@@ -79,57 +88,45 @@ class DynamicViewSelection(nn.Module):
         center = point_cloud.mean(0)
         radius = torch.norm(point_cloud - center, dim=1).max()
         
+        # Generate camera parameters for different viewpoints
+        camera_params_list = []
+        
         # Generate camera positions in a sphere around the scene
         angles = torch.linspace(0, 2*np.pi, num_candidates)
         heights = torch.linspace(-0.5, 0.5, num_candidates)
         
-        camera_positions = []
         for i in range(num_candidates):
             angle = angles[i]
             height = heights[i]
             x = center[0] + radius * 1.5 * torch.cos(angle)
             y = center[1] + radius * 1.5 * torch.sin(angle)
             z = center[2] + radius * 1.5 * height
-            camera_positions.append([x, y, z])
+            
+            camera_pos = torch.tensor([x, y, z])
+            look_at = center
+            
+            # Calculate camera orientation
+            forward = F.normalize(look_at - camera_pos, dim=-1)
+            right = F.normalize(torch.cross(forward, torch.tensor([0, 0, 1.0])), dim=-1)
+            up = F.normalize(torch.cross(right, forward), dim=-1)
+            
+            # Create rotation matrix
+            rotation_matrix = torch.stack([right, up, forward], dim=-1)
+            
+            camera_params = {
+                'position': camera_pos,
+                'rotation': rotation_matrix,
+                'look_at': look_at
+            }
+            camera_params_list.append(camera_params)
         
-        camera_positions = torch.stack(camera_positions)
+        # Render all views using the proper renderer
+        rendered_images = self.renderer.render_multiple_views(
+            point_cloud, camera_params_list
+        )
         
-        # Simple rendering: project points to 2D images
-        rendered_images = []
-        for cam_pos in camera_positions:
-            # Simple orthographic projection
-            # In practice, you would use a proper renderer like PyTorch3D
-            img = self.simple_point_cloud_to_image(point_cloud, cam_pos)
-            rendered_images.append(img)
-        
-        return torch.stack(rendered_images)
+        return rendered_images
     
-    def simple_point_cloud_to_image(self, point_cloud, camera_pos):
-        """Simple point cloud to image conversion (placeholder)"""
-        # This is a simplified version. In practice, use PyTorch3D or similar
-        # For now, create a dummy image with some structure
-        img = torch.randn(224, 224, 3)  # RGB image
-        
-        # Add some structure based on point cloud
-        center = point_cloud.mean(0)
-        distances = torch.norm(point_cloud - center, dim=1)
-        max_dist = distances.max()
-        
-        # Create a simple visualization
-        for i in range(224):
-            for j in range(224):
-                # Simple mapping based on position
-                x_norm = (i - 112) / 112
-                y_norm = (j - 112) / 112
-                dist = torch.sqrt(torch.tensor(x_norm**2 + y_norm**2))
-                
-                # Color based on distance from center
-                intensity = torch.exp(-dist * 2)
-                img[i, j, 0] = intensity  # Red channel
-                img[i, j, 1] = intensity * 0.8  # Green channel
-                img[i, j, 2] = intensity * 0.6  # Blue channel
-        
-        return img
     
     def encode_views_with_clip(self, rendered_images):
         """Encode rendered images with CLIP"""

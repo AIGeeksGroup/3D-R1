@@ -214,7 +214,12 @@ class captioner(nn.Module):
         self.enable_dynamic_views = getattr(args, 'enable_dynamic_views', False)
         if self.enable_dynamic_views:
             from .view_selection import DynamicViewSelection
-            self.view_selection = DynamicViewSelection(device="cuda", num_views=4)
+            use_pytorch3d = getattr(args, 'use_pytorch3d_rendering', True)
+            self.view_selection = DynamicViewSelection(
+                device="cuda", 
+                num_views=4, 
+                use_pytorch3d=use_pytorch3d
+            )
             self.view_selection_weight = getattr(args, 'view_selection_weight', 0.1)
         else:
             self.view_selection = None
@@ -367,10 +372,10 @@ class captioner(nn.Module):
                 encoder_hidden_states = encoder_hidden_states + expanded_features
         
         # Dynamic View Selection
-        if self.view_selection is not None and hasattr(inputs, 'instruction_text') and inputs.get('instruction_text'):
-            # Apply dynamic view selection
+        if self.view_selection is not None and 'instruction' in inputs:
+            # Decode the tokenized instruction
+            instruction_text = self.tokenizer.decode(inputs['instruction'][0], skip_special_tokens=True)
             point_cloud = inputs["point_clouds"][0]  # Use first sample for view selection
-            instruction_text = inputs['instruction_text'][0] if isinstance(inputs['instruction_text'], list) else inputs['instruction_text']
             
             selected_view_features, view_indices = self.view_selection(point_cloud, instruction_text)
             
@@ -659,11 +664,11 @@ class captioner(nn.Module):
                         all_logits.append(torch.stack(batch_logits))
                     
                     detector_output['logits'] = torch.stack(all_logits)  # [batch_size, nproposals, vocab_size]
-                except Exception as e:
+            except Exception as e:
                     # Fallback to None if logits generation fails
-                    detector_output['logits'] = None
-            else:
                 detector_output['logits'] = None
+        else:
+            detector_output['logits'] = None
         
         return detector_output
     

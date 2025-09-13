@@ -7,6 +7,7 @@ import clip
 from PIL import Image
 import cv2
 from scipy.spatial.transform import Rotation as R
+from .point_renderer import create_point_cloud_renderer
 
 class DynamicViewSelection(nn.Module):
     """
@@ -18,7 +19,8 @@ class DynamicViewSelection(nn.Module):
                  visual_encoder_name: str = "ViT-B/32",
                  num_candidate_views: int = 8,
                  num_selected_views: int = 4,
-                 device: str = "cuda"):
+                 device: str = "cuda",
+                 use_pytorch3d: bool = True):
         super(DynamicViewSelection, self).__init__()
         
         self.num_candidate_views = num_candidate_views
@@ -27,6 +29,14 @@ class DynamicViewSelection(nn.Module):
         
         # Load CLIP for visual encoding and alignment
         self.clip_model, self.clip_preprocess = clip.load(visual_encoder_name, device=device)
+        
+        # Initialize point cloud renderer
+        self.renderer = create_point_cloud_renderer(
+            use_pytorch3d=use_pytorch3d,
+            image_size=224,
+            device=device,
+            render_method="pulsar" if use_pytorch3d else "fallback"
+        )
         
         # Learnable weights for score fusion
         self.wt = nn.Parameter(torch.tensor(0.3))  # text relevance weight
@@ -107,35 +117,9 @@ class DynamicViewSelection(nn.Module):
                    camera_params: Dict,
                    image_size: int = 224) -> torch.Tensor:
         """
-        Render 2D image from 3D point cloud using camera parameters
+        Render 2D image from 3D point cloud using proper 3D rendering
         """
-        # Transform points to camera coordinates
-        camera_pos = camera_params['position']
-        rotation_matrix = camera_params['rotation']
-        
-        # Transform points
-        points_cam = torch.matmul(point_cloud - camera_pos, rotation_matrix.T)
-        
-        # Project to 2D (simplified perspective projection)
-        focal_length = 500.0
-        points_2d = points_cam[:, :2] * focal_length / points_cam[:, 2:3]
-        
-        # Create image
-        image = torch.zeros(3, image_size, image_size)
-        
-        # Simple point splatting
-        for i, point in enumerate(points_2d):
-            x, y = point[0], point[1]
-            if 0 <= x < image_size and 0 <= y < image_size:
-                # Simple color based on point position
-                color = torch.tensor([
-                    (points_cam[i, 0] + 1) / 2,
-                    (points_cam[i, 1] + 1) / 2,
-                    (points_cam[i, 2] + 1) / 2
-                ])
-                image[:, int(y), int(x)] = color
-        
-        return image
+        return self.renderer.render_point_cloud(point_cloud, camera_params)
     
     def compute_text_relevance_score(self, view_features: torch.Tensor, 
                                    text_features: torch.Tensor) -> torch.Tensor:

@@ -30,6 +30,7 @@ python main.py \
     --max_prompt 1 \
     --enable_dynamic_views \
     --view_selection_weight 0.1 \
+    --use_pytorch3d_rendering \
     --use_multimodal_model \
     --use_lora \
     --lora_r 16 \

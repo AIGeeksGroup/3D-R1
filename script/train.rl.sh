@@ -32,6 +32,7 @@ python main_rl.py \
     --rl_max_grad_norm 1.0 \
     --enable_dynamic_views \
     --view_selection_weight 0.1 \
+    --use_pytorch3d_rendering \
     --use_lora \
     --lora_r 16 \
     --lora_alpha 32 \
