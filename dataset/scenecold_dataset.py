@@ -20,6 +20,7 @@ class Dataset(ScanNetBaseDataset):
         use_multiview=False,
         use_height=False,
         augment=False,
+        use_additional_encoders=False,
     ):
         super().__init__(
             args,
@@ -32,7 +33,7 @@ class Dataset(ScanNetBaseDataset):
             use_height=use_height,
             augment=augment,
             use_random_cuboid=False,
-            use_additional_encoders=getattr(args, 'use_additional_encoders', False),
+            use_additional_encoders=use_additional_encoders,
         )
 
         self.task_name = 'cold-start'

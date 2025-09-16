@@ -13,6 +13,7 @@ class Dataset(ScanNetBaseDataset):
         use_multiview=False,
         use_height=False,
         augment=False,
+        use_additional_encoders=False,
     ):
         super().__init__(
             args,
@@ -26,7 +27,7 @@ class Dataset(ScanNetBaseDataset):
             augment=augment,
             use_random_cuboid=False,
             random_cuboid_min_points=None,
-            use_additional_encoders=getattr(args, 'use_additional_encoders', False),
+            use_additional_encoders=use_additional_encoders,
         )
         
         self.eval_func = evaluate
