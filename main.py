@@ -18,18 +18,18 @@ def make_args_parser():
     parser = argparse.ArgumentParser("3D-R1", add_help=False)
 
     ##### Optimizer #####
-    parser.add_argument("--base_lr", default=5e-4, type=float)
+    parser.add_argument("--base_lr", default=1e-4, type=float)  # Reduced from 5e-4 for stability
     parser.add_argument("--final_lr", default=1e-6, type=float)
     parser.add_argument("--lr_scheduler", default="cosine", type=str)
-    parser.add_argument("--weight_decay", default=0.1, type=float)
+    parser.add_argument("--weight_decay", default=0.01, type=float)  # Reduced from 0.1 for stability
     parser.add_argument("--optimizer", default="AdamW", type=str)
     parser.add_argument(
-        "--clip_gradient", default=0.1, type=float, 
+        "--clip_gradient", default=1.0, type=float,  # Increased from 0.1 for better stability
         help="Max L2 norm of the gradient"
     )
-    # DISABLE warmup learning rate during dense caption training
+    # Enable warmup learning rate for better training stability
     parser.add_argument("--warm_lr", default=1e-6, type=float)
-    parser.add_argument("--warm_lr_epochs", default=9, type=int)
+    parser.add_argument("--warm_lr_epochs", default=5, type=int)  # Reduced warmup period
     # only ACTIVATE during dense caption training
     parser.add_argument("--pretrained_params_lr", default=None, type=float)
     parser.add_argument("--pretrained_weights", default=None, type=str)
@@ -75,6 +75,10 @@ def make_args_parser():
     ##### Dataset #####
     parser.add_argument("--max_prompts", default=16, type=int, help="number of visual interactions")
     parser.add_argument("--dataset", default='scannet', help="dataset list split by ','")
+    parser.add_argument("--use_unified_dataset", default=False, action="store_true",
+                       help="Use unified dataset for RL training with target text")
+    parser.add_argument("--use_rl_training", default=False, action="store_true",
+                       help="Enable RL training mode with target text for reward computation")
     parser.add_argument("--grid_size_3d", default=255, type=int, help="grid size of the 3D scene")    
     parser.add_argument('--vocab', default="llama-hf/7B", type=str, help="The LLM backend")
     parser.add_argument('--qformer_vocab', default="bert-base-uncased", type=str, help="The QFormer backend")
@@ -126,6 +130,20 @@ def make_args_parser():
                        help="Depth encoder output dimension")
     parser.add_argument("--image_encoder_dim", default=256, type=int,
                        help="Image encoder output dimension")
+    parser.add_argument("--max_multiview_images", default=8, type=int,
+                       help="Maximum number of multi-view images to load per sample")
+    parser.add_argument("--max_multiview_depth", default=8, type=int,
+                       help="Maximum number of multi-view depth maps to load per sample")
+    
+    ##### Evaluation Optimization #####
+    parser.add_argument("--eval_batch_size", default=None, type=int,
+                       help="Batch size for evaluation (if None, uses training batch size)")
+    parser.add_argument("--eval_max_samples", default=None, type=int,
+                       help="Maximum number of samples to evaluate (for quick testing)")
+    parser.add_argument("--eval_skip_metrics", default=False, action="store_true",
+                       help="Skip expensive metric computations during evaluation")
+    parser.add_argument("--eval_use_fp16", default=False, action="store_true",
+                       help="Use mixed precision for evaluation to speed up inference")
     
     ##### Model Type Configuration #####
     parser.add_argument("--use_multimodal_model", default=False, action="store_true",
@@ -164,12 +182,24 @@ def build_dataloader_func(args, dataset, split):
             sampler = torch.utils.data.RandomSampler(dataset)
         else:
             sampler = torch.utils.data.SequentialSampler(dataset)
+    
+    # Use evaluation batch size if specified, otherwise use training batch size
+    batch_size = args.batchsize_per_gpu
+    if split != "train" and args.eval_batch_size is not None:
+        batch_size = args.eval_batch_size
+    
+    # Limit dataset size for quick evaluation if specified
+    if split != "train" and args.eval_max_samples is not None:
+        dataset = torch.utils.data.Subset(dataset, range(min(args.eval_max_samples, len(dataset))))
+    
     dataloader = torch.utils.data.DataLoader(
         dataset,
         sampler=sampler,
-        batch_size=args.batchsize_per_gpu,
+        batch_size=batch_size,
         num_workers=args.dataset_num_workers,
         worker_init_fn=my_worker_init_fn,
+        pin_memory=True,  # Enable pin memory for faster data transfer
+        persistent_workers=True if args.dataset_num_workers > 0 else False,  # Keep workers alive
     )
     return sampler, dataloader
 
@@ -181,9 +211,35 @@ def build_dataset(args):
     
     train_datasets = []
     for dataset in args.dataset.split(','):
-        dataset_module = importlib.import_module(f'dataset.{dataset}')
+        # Choose dataset module based on unified dataset flag
+        if args.use_unified_dataset:
+            # Use unified dataset for RL training
+            if dataset == 'scanqa':
+                dataset_module = importlib.import_module('dataset.unified_scanqa')
+                dataset_class = dataset_module.UnifiedScanQADataset
+            elif dataset == 'scanrefer':
+                dataset_module = importlib.import_module('dataset.unified_scanrefer')
+                dataset_class = dataset_module.UnifiedScanReferDataset
+            elif dataset == 'nr3d':
+                dataset_module = importlib.import_module('dataset.unified_nr3d')
+                dataset_class = dataset_module.UnifiedNr3DDataset
+            elif dataset == 'dialogue':
+                dataset_module = importlib.import_module('dataset.unified_dialogue')
+                dataset_class = dataset_module.UnifiedDialogueDataset
+            elif dataset == 'planning':
+                dataset_module = importlib.import_module('dataset.unified_planning')
+                dataset_class = dataset_module.UnifiedPlanningDataset
+            else:
+                # Fallback to standard dataset
+                dataset_module = importlib.import_module(f'dataset.{dataset}')
+                dataset_class = dataset_module.Dataset
+        else:
+            # Use standard dataset
+            dataset_module = importlib.import_module(f'dataset.{dataset}')
+            dataset_class = dataset_module.Dataset
+        
         train_datasets.append(
-            dataset_module.Dataset(
+            dataset_class(
                 args,
                 dataset_config, 
                 split_set="train", 
@@ -192,7 +248,8 @@ def build_dataset(args):
                 use_multiview=args.use_multiview,
                 use_height=args.use_height,
                 augment=True,
-                use_additional_encoders=args.use_additional_encoders
+                use_additional_encoders=args.use_additional_encoders,
+                use_rl_training=args.use_rl_training,  # Pass RL training flag
             )
         )
         datasets['test'].append(

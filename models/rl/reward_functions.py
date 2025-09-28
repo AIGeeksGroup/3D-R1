@@ -79,12 +79,16 @@ class RewardFunctions:
         return avg_iou
     
     def compute_semantic_similarity_reward(self, generated_text: str, 
-                                         ground_truth: str) -> float:
+                                         ground_truth: str = None) -> float:
         """
         Encourage semantic coherence between predicted and ground truth answers
         Using CLIP text encoder
         """
         try:
+            # If no ground truth provided, return 0
+            if ground_truth is None:
+                return 0.0
+                
             # Extract answer part from generated text
             answer_match = re.search(r'<answer>(.*?)</answer>', generated_text, re.DOTALL)
             if answer_match:

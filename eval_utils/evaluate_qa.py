@@ -13,22 +13,27 @@ from utils.misc import SmoothedValue
 from utils.dist import (
     is_primary, barrier, all_gather_dict,
 )
+
 # ----------------------------------------------------------------------
 TAG_RE   = re.compile(r"<answer>(.*?)</answer>", re.I | re.S)
 THINK_RE = re.compile(r"<think>(.*?)</think>",  re.I | re.S)
 
 def _extract_ans(txt: str) -> str:
+    """Extract answer from text with <answer> tags"""
     txt = THINK_RE.sub("", txt)
     m = TAG_RE.search(txt)
     ans = m.group(1) if m else txt
     return " ".join(ans.strip().lower().split())
+
 def _extract_think(txt: str) -> str:
+    """Extract thinking from text with <think> tags"""
     m = THINK_RE.search(txt)
     if not m:
         return ""
     return " ".join(m.group(1).strip().lower().split())
 
 def _f1(pred, gold):
+    """Compute F1 score between predicted and gold text"""
     pc, gc = pred.split(), gold.split()
     common = Counter(pc) & Counter(gc)
     num_same = sum(common.values())
@@ -39,6 +44,7 @@ def _f1(pred, gold):
     return 2 * p * r / (p + r)
 
 def _score_corpus(refs: dict, hyps: dict):
+    """Compute corpus-level scores using multiple metrics"""
     bleu      = capblue.Bleu(4).compute_score(refs, hyps)      # (list, per-sent)
     cider     = capcider.Cider().compute_score(refs, hyps)     # (float, per-sent)
     rouge_l   = caprouge.Rouge().compute_score(refs, hyps)     # (float, per-sent)
@@ -52,6 +58,7 @@ def _score_corpus(refs: dict, hyps: dict):
         METEOR  = meteor[0],
     )
     return summary
+
 # ----------------------------------------------------------------------
 @torch.no_grad()
 def evaluate(
@@ -63,6 +70,9 @@ def evaluate(
     logout=print,
     curr_train_iter=-1,
 ):
+    """
+    Evaluate QA model performance
+    """
     device     = next(model.parameters()).device
     tokenizer  = dataset_loader.dataset.tokenizer
     annotations = dataset_loader.dataset.annotations
@@ -123,7 +133,7 @@ def evaluate(
             key = f"{anno['scene_id']}-{global_idx}"
 
             pred_ans = _extract_ans(txt)
-            gold_ans = _extract_think(anno['cot']) + _extract_ans(anno['cot'])
+            gold_ans = _extract_think(anno.get('cot', '')) + _extract_ans(anno.get('cot', ''))
 
             batch_keys.append(key)
             batch_pred_ans.append(pred_ans)
@@ -159,7 +169,6 @@ def evaluate(
             'ROUGE_L': 0.0, 'METEOR': 0.0
         }
     else:
-        # sent_scores = _score_corpus(corpus, cand)
         sent_scores = _score_corpus(corpus, cand)
     
     metrics = OrderedDict(
@@ -179,3 +188,4 @@ def evaluate(
             json.dump(corpus, f, indent=2)
 
     return metrics
+

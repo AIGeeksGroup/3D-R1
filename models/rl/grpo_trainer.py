@@ -158,7 +158,13 @@ class GRPOTrainer:
         if generated_texts and len(generated_texts) > 0:
             format_reward = self.reward_functions.compute_format_reward(generated_texts[0])
             perception_reward = self.reward_functions.compute_perception_reward(batch_data, 0, generated_texts[0])
-            semantic_reward = self.reward_functions.compute_semantic_similarity_reward(generated_texts[0], ground_truth[0] if ground_truth else "")
+            # Handle ground truth properly for semantic similarity
+            if ground_truth and len(ground_truth) > 0:
+                semantic_reward = self.reward_functions.compute_semantic_similarity_reward(
+                    generated_texts[0], ground_truth[0]
+                )
+            else:
+                semantic_reward = 0.0
         else:
             format_reward = 0.0
             perception_reward = 0.0
@@ -192,8 +198,17 @@ class GRPOTrainer:
                 if isinstance(batch_data[key], torch.Tensor):
                     batch_data[key] = batch_data[key].to(self.device)
             
-            # Extract ground truth
-            ground_truth = batch_data.get('target_text', [])
+            # Extract ground truth from unified dataset
+            if 'target_text' in batch_data:
+                # RL training mode with unified dataset
+                ground_truth = batch_data['target_text']
+                if isinstance(ground_truth, torch.Tensor):
+                    ground_truth = ground_truth.tolist()
+                elif not isinstance(ground_truth, list):
+                    ground_truth = [ground_truth]
+            else:
+                # Standard training mode - no target text available
+                ground_truth = []
             
             # Training step
             step_stats = self.train_step(batch_data, ground_truth)

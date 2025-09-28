@@ -103,6 +103,12 @@ class captioner(nn.Module):
                     param.requires_grad = True
         return self
     
+    def eval(self):
+        """Set model to evaluation mode and enable fast evaluation settings"""
+        super().eval()
+        self._is_eval_mode = True
+        return self
+    
     def __init__(self, args, train_dataset):
         super(captioner, self).__init__()
         
@@ -275,6 +281,16 @@ class captioner(nn.Module):
             'eos_token_id': self.tokenizer.convert_tokens_to_ids("</answer>"),
             # 'eos_token_id': self.tokenizer.eos_token_id,
             # 'num_beams': 4 if args.use_beam_search is True else None,
+        }
+        
+        # Fast evaluation configuration
+        self.fast_eval_config = {
+            'early_stopping': True,
+            'eos_token_id': self.tokenizer.convert_tokens_to_ids("</answer>"),
+            'do_sample': False,  # Use greedy decoding for speed
+            'temperature': 1.0,
+            'top_p': 1.0,
+            'repetition_penalty': 1.0,
         }
         self.train()
         # self.set_transformer_trainable(4 if self.freeze_llm else self._llm_total_layers)
@@ -483,20 +499,29 @@ class captioner(nn.Module):
                 attention_mask=attention_mask.to(self.dtype),
             )
         
-        # Main caption loss
+        # Main caption loss with improved stability
         caption_loss = self.loss_caption(
             logits = outputs.logits[:, prefix_tokens.shape[1] - 1: -1],
             target = input_ids,
             mask = gradient_mask.to(self.dtype),
         )
+        
+        # Check for loss explosion and apply scaling if needed
+        if torch.isfinite(caption_loss) and caption_loss.item() > 10.0:
+            print(f"Warning: Large caption loss detected: {caption_loss.item():.4f}, applying scaling")
+            caption_loss = torch.clamp(caption_loss, max=10.0)
+        
         detector_output['loss'] += caption_loss
         
-        # Dynamic View Selection regularization loss
+        # Dynamic View Selection regularization loss with better scaling
         if self.view_selection is not None:
             view_reg_loss = self.view_selection.get_reg_loss()
-            detector_output['loss'] += self.view_selection_weight * view_reg_loss
+            if torch.isfinite(view_reg_loss):
+                # Scale view selection loss to prevent it from dominating
+                scaled_view_loss = self.view_selection_weight * torch.clamp(view_reg_loss, max=1.0)
+                detector_output['loss'] += scaled_view_loss
         
-        # Additional encoders regularization loss (optional)
+        # Additional encoders regularization loss (optional) with improved scaling
         if self.use_additional_encoders:
             # Add small regularization to prevent overfitting
             additional_reg_loss = 0.0
@@ -507,18 +532,39 @@ class captioner(nn.Module):
                 for param in self.image_encoder.parameters():
                     additional_reg_loss += torch.norm(param, p=2)
             
-            # Add regularization loss with small weight
-            detector_output['loss'] += 1e-5 * additional_reg_loss
+            # Add regularization loss with small weight and clipping
+            if torch.isfinite(additional_reg_loss):
+                clamped_reg_loss = torch.clamp(additional_reg_loss, max=100.0)
+                detector_output['loss'] += 1e-5 * clamped_reg_loss
         
         return detector_output
 
     def loss_caption(self, logits: Tensor, target: Tensor, mask: Tensor) -> Tensor:
+        # Apply label smoothing to prevent overconfidence
+        label_smoothing = 0.1
+        
         loss_per_word = nnf.cross_entropy(
             logits.permute(0, 2, 1).contiguous(),
             target,
             reduction='none',
+            label_smoothing=label_smoothing
         )
-        final_loss = torch.sum(loss_per_word * mask) / torch.sum(mask + 1e-6)
+        
+        # More stable loss computation with better numerical stability
+        masked_loss = loss_per_word * mask
+        valid_tokens = torch.sum(mask)
+        
+        # Prevent division by zero and ensure numerical stability
+        if valid_tokens > 0:
+            final_loss = torch.sum(masked_loss) / valid_tokens
+        else:
+            final_loss = torch.tensor(0.0, device=logits.device, dtype=logits.dtype)
+        
+        # Check for NaN or Inf values
+        if not torch.isfinite(final_loss):
+            print(f"Warning: Non-finite loss detected. Logits range: [{logits.min():.4f}, {logits.max():.4f}]")
+            final_loss = torch.tensor(0.0, device=logits.device, dtype=logits.dtype)
+        
         # parameter activation for multi-gpu training
         for param in self.parameters():
             if param.requires_grad:
@@ -678,12 +724,11 @@ class captioner(nn.Module):
         # ---- necessary elements
         embedding_layer = self.transformer.get_input_embeddings()
         net_device = next(self.parameters()).device
-        # ---- to store llm outputs
-        output_ids = []
+        batch_size = inputs['instruction'].shape[0]
         
         # ---- llm input preparation
-        instruction = inputs['instruction']             # ntoken
-        instruction_mask = inputs['instruction_mask']   # ntoken
+        instruction = inputs['instruction']             # batch x ntoken
+        instruction_mask = inputs['instruction_mask']   # batch x ntoken
 
         prefix_tokens = self._get_instruction_response(
             detector_output=detector_output,
@@ -691,25 +736,89 @@ class captioner(nn.Module):
         )
         prefix_tokens = prefix_tokens.to(self.dtype)
         
-        for batch_id in range(prefix_tokens.shape[0]):
-            sample_instruction = instruction[batch_id]     
-            sample_mask = instruction_mask[batch_id]     # ntoken
-            
+        # Optimized batch processing
+        # Prepare all instruction embeddings at once
+        instruction_embeddings = []
+        max_instruction_length = 0
+        
+        for batch_id in range(batch_size):
+            sample_instruction = instruction[batch_id]
+            sample_mask = instruction_mask[batch_id]
+            valid_instruction = sample_instruction[sample_mask == 1]
+            instruction_embeddings.append(valid_instruction)
+            max_instruction_length = max(max_instruction_length, len(valid_instruction))
+        
+        # Pad all instruction embeddings to the same length
+        padded_instruction_embeddings = []
+        for inst_emb in instruction_embeddings:
+            if len(inst_emb) < max_instruction_length:
+                # Pad with zeros
+                padding = torch.zeros(max_instruction_length - len(inst_emb), dtype=inst_emb.dtype, device=inst_emb.device)
+                padded_inst = torch.cat([inst_emb, padding], dim=0)
+            else:
+                padded_inst = inst_emb
+            padded_instruction_embeddings.append(padded_inst)
+        
+        # Stack all instruction embeddings
+        instruction_embeddings_tensor = torch.stack(padded_instruction_embeddings)  # batch x max_len x embed_dim
+        instruction_embeddings_tensor = embedding_layer(instruction_embeddings_tensor)
+        
+        # Prepare attention masks for instructions
+        instruction_attention_masks = []
+        for batch_id in range(batch_size):
+            sample_mask = instruction_mask[batch_id]
+            valid_length = (sample_mask == 1).sum().item()
+            mask = torch.zeros(max_instruction_length, dtype=torch.bool, device=net_device)
+            mask[:valid_length] = True
+            instruction_attention_masks.append(mask)
+        
+        instruction_attention_masks = torch.stack(instruction_attention_masks)  # batch x max_len
+        
+        # Combine prefix tokens with instruction embeddings
+        # prefix_tokens: batch x nprefix x embed_dim
+        # instruction_embeddings_tensor: batch x max_len x embed_dim
+        combined_embeddings = torch.cat([prefix_tokens, instruction_embeddings_tensor], dim=1)
+        
+        # Create combined attention mask
+        prefix_attention_mask = torch.ones(batch_size, prefix_tokens.shape[1], dtype=torch.bool, device=net_device)
+        combined_attention_mask = torch.cat([prefix_attention_mask, instruction_attention_masks], dim=1)
+        
+        # Batch generation - much faster than sequential
+        # Use fast evaluation config for better performance
+        eval_config = self.fast_eval_config if getattr(self, '_is_eval_mode', False) else self.caption_config
+        
+        try:
             output = generation(
                 self.transformer, 
-                inputs_embeds=torch.cat(
-                    [
-                        prefix_tokens[batch_id].unsqueeze(0),   # 1 x nprefix x n_embd
-                        embedding_layer(sample_instruction[sample_mask == 1]).unsqueeze(0)
-                    ],
-                    dim=1
-                ),
+                inputs_embeds=combined_embeddings,
+                attention_mask=combined_attention_mask,
                 max_length=max_gen_length,
-                **self.caption_config
+                **eval_config
             )
-            output_ids.append(output['output_ids'])
+            output_ids = output['output_ids']
+        except Exception as e:
+            print(f"Warning: Batch generation failed, falling back to sequential: {e}")
+            # Fallback to sequential processing if batch generation fails
+            output_ids = []
+            for batch_id in range(batch_size):
+                sample_instruction = instruction[batch_id]     
+                sample_mask = instruction_mask[batch_id]
+                
+                output = generation(
+                    self.transformer, 
+                    inputs_embeds=torch.cat(
+                        [
+                            prefix_tokens[batch_id].unsqueeze(0),
+                            embedding_layer(sample_instruction[sample_mask == 1]).unsqueeze(0)
+                        ],
+                        dim=1
+                    ),
+                    max_length=max_gen_length,
+                    **self.caption_config
+                )
+                output_ids.append(output['output_ids'])
+            output_ids = torch.cat(output_ids, dim=0)
         
-        output_ids = torch.cat(output_ids, dim=0)
         detector_output['output_ids'] = output_ids
         
         # Decode output_ids to text for GRPO training

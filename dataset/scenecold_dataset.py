@@ -107,7 +107,12 @@ class Dataset(ScanNetBaseDataset):
        
         ret["input_ids"]        = enc_target["input_ids"][0].astype(np.int64)
         ret["attention_mask"]   = enc_target["attention_mask"][0].astype(np.float32)
-        ret["gradient_mask"]    = (enc_target['attention_mask'][0] - enc_source['attention_mask'].astype(np.float32))
+        
+        # Improved gradient mask computation to prevent extreme values
+        gradient_mask = enc_target['attention_mask'][0] - enc_source['attention_mask'].astype(np.float32)
+        # Ensure gradient mask is non-negative and properly normalized
+        gradient_mask = np.maximum(gradient_mask, 0.0)
+        ret["gradient_mask"] = gradient_mask.astype(np.float32)
         ret['scan_idx'] = np.array(idx).astype(np.int64)
         ret["instruction"] = enc_source['input_ids'][0].astype(np.int64)
         ret["instruction_mask"] = enc_source['attention_mask'][0].astype(np.float32)

@@ -13,22 +13,25 @@ from utils.misc import SmoothedValue
 from utils.dist import (
     is_primary, barrier, all_gather_dict,
 )
-# ----------------------------------------------------------------------
-TAG_RE   = re.compile(r"<answer>(.*?)</answer>", re.I | re.S)
-THINK_RE = re.compile(r"<think>(.*?)</think>",  re.I | re.S)
 
-def _extract_ans(txt: str) -> str:
-    txt = THINK_RE.sub("", txt)
+# ----------------------------------------------------------------------
+TAG_RE   = re.compile(r"<desc>(.*?)</desc>", re.I | re.S)
+LOC_RE   = re.compile(r"<loc>(.*?)</loc>", re.I | re.S)
+
+def _extract_desc(txt: str) -> str:
+    """Extract description from text with <desc> tags"""
     m = TAG_RE.search(txt)
-    ans = m.group(1) if m else txt
-    return " ".join(ans.strip().lower().split())
-def _extract_think(txt: str) -> str:
-    m = THINK_RE.search(txt)
-    if not m:
-        return ""
-    return " ".join(m.group(1).strip().lower().split())
+    desc = m.group(1) if m else txt
+    return " ".join(desc.strip().lower().split())
+
+def _extract_loc(txt: str) -> str:
+    """Extract location from text with <loc> tags"""
+    m = LOC_RE.search(txt)
+    loc = m.group(1) if m else ""
+    return " ".join(loc.strip().lower().split())
 
 def _f1(pred, gold):
+    """Compute F1 score between predicted and gold text"""
     pc, gc = pred.split(), gold.split()
     common = Counter(pc) & Counter(gc)
     num_same = sum(common.values())
@@ -39,6 +42,7 @@ def _f1(pred, gold):
     return 2 * p * r / (p + r)
 
 def _score_corpus(refs: dict, hyps: dict):
+    """Compute corpus-level scores using multiple metrics"""
     bleu      = capblue.Bleu(4).compute_score(refs, hyps)      # (list, per-sent)
     cider     = capcider.Cider().compute_score(refs, hyps)     # (float, per-sent)
     rouge_l   = caprouge.Rouge().compute_score(refs, hyps)     # (float, per-sent)
@@ -52,6 +56,7 @@ def _score_corpus(refs: dict, hyps: dict):
         METEOR  = meteor[0],
     )
     return summary
+
 # ----------------------------------------------------------------------
 @torch.no_grad()
 def evaluate(
@@ -63,6 +68,9 @@ def evaluate(
     logout=print,
     curr_train_iter=-1,
 ):
+    """
+    Evaluate Dense Captioning model performance
+    """
     device     = next(model.parameters()).device
     tokenizer  = dataset_loader.dataset.tokenizer
     annotations = dataset_loader.dataset.annotations
@@ -70,7 +78,6 @@ def evaluate(
     time_delta  = SmoothedValue(10)
 
     corpus, cand = {}, {}
-    think_corpus, think_cand = {}, {}
     em_total, f1_total, n_samples = 0, 0, 0
 
     model.eval(); barrier()
@@ -98,9 +105,9 @@ def evaluate(
         # Use mixed precision if enabled
         if getattr(args, 'eval_use_fp16', False):
             with torch.cuda.amp.autocast():
-                outputs = model(model_inp, is_eval=True, task_name="qa")
+                outputs = model(model_inp, is_eval=True, task_name="densecap")
         else:
-            outputs = model(model_inp, is_eval=True, task_name="qa")
+            outputs = model(model_inp, is_eval=True, task_name="densecap")
         outputs = all_gather_dict(dict(output_ids=outputs["output_ids"]))
         batch   = all_gather_dict(batch)
 
@@ -114,29 +121,30 @@ def evaluate(
         # Vectorized processing for better performance
         batch_global_indices = batch['scan_idx'].cpu().numpy()
         batch_keys = []
-        batch_pred_ans = []
-        batch_gold_ans = []
+        batch_pred_desc = []
+        batch_gold_desc = []
         
         for i, txt in enumerate(dec_txt):
             global_idx = batch_global_indices[i]
             anno = annotations[global_idx]
             key = f"{anno['scene_id']}-{global_idx}"
 
-            pred_ans = _extract_ans(txt)
-            gold_ans = _extract_think(anno['cot']) + _extract_ans(anno['cot'])
+            pred_desc = _extract_desc(txt)
+            # For dense captioning, use the token field as ground truth
+            gold_desc = " ".join(anno.get('token', [])).lower()
 
             batch_keys.append(key)
-            batch_pred_ans.append(pred_ans)
-            batch_gold_ans.append(gold_ans)
+            batch_pred_desc.append(pred_desc)
+            batch_gold_desc.append(gold_desc)
 
         # Batch update metrics
         for i in range(len(batch_keys)):
-            em_total += int(batch_pred_ans[i] == batch_gold_ans[i])
-            f1_total += _f1(batch_pred_ans[i], batch_gold_ans[i])
+            em_total += int(batch_pred_desc[i] == batch_gold_desc[i])
+            f1_total += _f1(batch_pred_desc[i], batch_gold_desc[i])
             n_samples += 1
 
-            cand[batch_keys[i]] = [batch_pred_ans[i]]
-            corpus[batch_keys[i]] = [batch_gold_ans[i]]
+            cand[batch_keys[i]] = [batch_pred_desc[i]]
+            corpus[batch_keys[i]] = [batch_gold_desc[i]]
 
         # Clear cache after processing
         torch.cuda.empty_cache()
@@ -159,7 +167,6 @@ def evaluate(
             'ROUGE_L': 0.0, 'METEOR': 0.0
         }
     else:
-        # sent_scores = _score_corpus(corpus, cand)
         sent_scores = _score_corpus(corpus, cand)
     
     metrics = OrderedDict(
@@ -169,13 +176,14 @@ def evaluate(
     )
 
     if is_primary():
-        logout("\n---------------------- QA Evaluation ----------------------")
+        logout("\n---------------------- Dense Captioning Evaluation ----------------------")
         for k, v in metrics.items():
             logout(f"{k:<7}: {v:.2f}")
 
-        with open(os.path.join(args.checkpoint_dir, "qa_pred.json"), "w") as f:
+        with open(os.path.join(args.checkpoint_dir, "densecap_pred.json"), "w") as f:
             json.dump(cand, f, indent=2)
-        with open(os.path.join(args.checkpoint_dir, "qa_gt.json"), "w") as f:
+        with open(os.path.join(args.checkpoint_dir, "densecap_gt.json"), "w") as f:
             json.dump(corpus, f, indent=2)
 
     return metrics
+

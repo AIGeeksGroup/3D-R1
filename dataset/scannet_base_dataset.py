@@ -385,52 +385,88 @@ class ScanNetBaseDataset(Dataset):
         
         # Load additional modal data if enabled
         if self.use_additional_encoders:
-            # Load images if available
+            # Load multiple images if available
             image_path = os.path.join(self.data_path, scan_name, "images")
             if os.path.exists(image_path):
                 try:
-                    # Load first image as representative (you can modify this to load multiple views)
                     image_files = [f for f in os.listdir(image_path) if f.endswith(('.jpg', '.png', '.jpeg'))]
                     if image_files:
                         import cv2
-                        img = cv2.imread(os.path.join(image_path, image_files[0]))
-                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                        img = cv2.resize(img, (224, 224))  # Resize to standard size
-                        img = img.astype(np.float32) / 255.0  # Normalize to [0, 1]
-                        ret_dict["images"] = img.transpose(2, 0, 1)  # HWC to CHW
+                        # Sort files to ensure consistent ordering
+                        image_files.sort()
+                        
+                        # Load up to max_multiview_images (configurable)
+                        max_images = min(getattr(self.args, 'max_multiview_images', 8), len(image_files))
+                        images = []
+                        
+                        for i in range(max_images):
+                            img = cv2.imread(os.path.join(image_path, image_files[i]))
+                            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+                            img = cv2.resize(img, (224, 224))  # Resize to standard size
+                            img = img.astype(np.float32) / 255.0  # Normalize to [0, 1]
+                            images.append(img.transpose(2, 0, 1))  # HWC to CHW
+                        
+                        # Stack images: (num_images, 3, 224, 224)
+                        ret_dict["images"] = np.stack(images, axis=0)
+                        
+                        # If we have fewer than max_images, pad with zeros
+                        if len(images) < max_images:
+                            padding = np.zeros((max_images - len(images), 3, 224, 224), dtype=np.float32)
+                            ret_dict["images"] = np.concatenate([ret_dict["images"], padding], axis=0)
                     else:
-                        ret_dict["images"] = np.zeros((3, 224, 224), dtype=np.float32)
+                        max_images = getattr(self.args, 'max_multiview_images', 8)
+                        ret_dict["images"] = np.zeros((max_images, 3, 224, 224), dtype=np.float32)
                 except Exception as e:
-                    print(f"Warning: Failed to load image for {scan_name}: {e}")
-                    ret_dict["images"] = np.zeros((3, 224, 224), dtype=np.float32)
+                    print(f"Warning: Failed to load images for {scan_name}: {e}")
+                    max_images = getattr(self.args, 'max_multiview_images', 8)
+                    ret_dict["images"] = np.zeros((max_images, 3, 224, 224), dtype=np.float32)
             else:
-                ret_dict["images"] = np.zeros((3, 224, 224), dtype=np.float32)
+                max_images = getattr(self.args, 'max_multiview_images', 8)
+                ret_dict["images"] = np.zeros((max_images, 3, 224, 224), dtype=np.float32)
             
-            # Load depth maps if available
+            # Load multiple depth maps if available
             depth_path = os.path.join(self.data_path, scan_name, "depth")
             if os.path.exists(depth_path):
                 try:
-                    # Load first depth map as representative
                     depth_files = [f for f in os.listdir(depth_path) if f.endswith(('.png', '.npy'))]
                     if depth_files:
-                        if depth_files[0].endswith('.npy'):
-                            depth = np.load(os.path.join(depth_path, depth_files[0]))
-                        else:
-                            import cv2
-                            depth = cv2.imread(os.path.join(depth_path, depth_files[0]), cv2.IMREAD_ANYDEPTH)
+                        # Sort files to ensure consistent ordering
+                        depth_files.sort()
                         
-                        # Normalize depth to [0, 1] range
-                        if depth.max() > 0:
-                            depth = depth / depth.max()
-                        depth = cv2.resize(depth, (224, 224))
-                        ret_dict["depth_maps"] = depth.astype(np.float32)
+                        # Load up to max_multiview_depth (configurable)
+                        max_depth_maps = min(getattr(self.args, 'max_multiview_depth', 8), len(depth_files))
+                        depth_maps = []
+                        
+                        for i in range(max_depth_maps):
+                            if depth_files[i].endswith('.npy'):
+                                depth = np.load(os.path.join(depth_path, depth_files[i]))
+                            else:
+                                import cv2
+                                depth = cv2.imread(os.path.join(depth_path, depth_files[i]), cv2.IMREAD_ANYDEPTH)
+                            
+                            # Normalize depth to [0, 1] range
+                            if depth.max() > 0:
+                                depth = depth / depth.max()
+                            depth = cv2.resize(depth, (224, 224))
+                            depth_maps.append(depth.astype(np.float32))
+                        
+                        # Stack depth maps: (num_depth_maps, 224, 224)
+                        ret_dict["depth_maps"] = np.stack(depth_maps, axis=0)
+                        
+                        # If we have fewer than max_depth_maps, pad with zeros
+                        if len(depth_maps) < max_depth_maps:
+                            padding = np.zeros((max_depth_maps - len(depth_maps), 224, 224), dtype=np.float32)
+                            ret_dict["depth_maps"] = np.concatenate([ret_dict["depth_maps"], padding], axis=0)
                     else:
-                        ret_dict["depth_maps"] = np.zeros((224, 224), dtype=np.float32)
+                        max_depth_maps = getattr(self.args, 'max_multiview_depth', 8)
+                        ret_dict["depth_maps"] = np.zeros((max_depth_maps, 224, 224), dtype=np.float32)
                 except Exception as e:
-                    print(f"Warning: Failed to load depth map for {scan_name}: {e}")
-                    ret_dict["depth_maps"] = np.zeros((224, 224), dtype=np.float32)
+                    print(f"Warning: Failed to load depth maps for {scan_name}: {e}")
+                    max_depth_maps = getattr(self.args, 'max_multiview_depth', 8)
+                    ret_dict["depth_maps"] = np.zeros((max_depth_maps, 224, 224), dtype=np.float32)
             else:
-                ret_dict["depth_maps"] = np.zeros((224, 224), dtype=np.float32)
+                max_depth_maps = getattr(self.args, 'max_multiview_depth', 8)
+                ret_dict["depth_maps"] = np.zeros((max_depth_maps, 224, 224), dtype=np.float32)
         
         return ret_dict
 

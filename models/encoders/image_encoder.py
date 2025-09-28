@@ -80,7 +80,7 @@ class SigLIP2ImageEncoder(nn.Module):
         Encode images using SigLIP-2
         
         Args:
-            images: (B, 3, H, W) RGB images
+            images: (B, num_views, 3, H, W) RGB images
             
         Returns:
             Image features (B, output_dim)
@@ -89,44 +89,80 @@ class SigLIP2ImageEncoder(nn.Module):
             # Fallback to simple image processing
             return self._fallback_image_encoding(images)
         
-        # Preprocess images
-        processed_images = self.preprocess_images(images)
+        batch_size = images.shape[0]
+        num_views = images.shape[1]  # Number of images per sample
+        features_list = []
         
-        # Process with SigLIP-2
-        with torch.no_grad():
-            # Use the model's forward pass to get features
-            outputs = self.model(processed_images, output_hidden_states=True)
+        for i in range(batch_size):
+            batch_features = []
+            for j in range(num_views):
+                # Process each image individually
+                single_image = images[i, j].unsqueeze(0)  # Add batch dimension
+                processed_image = self.preprocess_images(single_image)
+                
+                # Process with SigLIP-2
+                with torch.no_grad():
+                    # Use the model's forward pass to get features
+                    outputs = self.model(processed_image, output_hidden_states=True)
+                    
+                    # Extract features from the last layer
+                    if hasattr(outputs, 'last_hidden_state'):
+                        features = outputs.last_hidden_state
+                    elif hasattr(outputs, 'pooler_output'):
+                        features = outputs.pooler_output
+                    else:
+                        # Fallback: use the first output
+                        features = outputs[0]
+                    
+                    # Global average pooling if needed
+                    if features.dim() > 2:
+                        features = F.adaptive_avg_pool2d(features, (1, 1)).squeeze(-1).squeeze(-1)
+                    
+                    # Project to output dimension
+                    features = self.feature_projection(features)
+                    
+                    batch_features.append(features)
             
-            # Extract features from the last layer
-            if hasattr(outputs, 'last_hidden_state'):
-                features = outputs.last_hidden_state
-            elif hasattr(outputs, 'pooler_output'):
-                features = outputs.pooler_output
+            # Average features across all views for this sample
+            if batch_features:
+                avg_features = torch.mean(torch.stack(batch_features), dim=0)
+                features_list.append(avg_features)
             else:
-                # Fallback: use the first output
-                features = outputs[0]
-            
-            # Global average pooling if needed
-            if features.dim() > 2:
-                features = F.adaptive_avg_pool2d(features, (1, 1)).squeeze(-1).squeeze(-1)
+                features_list.append(torch.zeros(1, self.output_dim))
         
-        # Project to output dimension
-        features = self.feature_projection(features)
-        
-        return features
+        return torch.cat(features_list, dim=0)
     
     def _fallback_image_encoding(self, images: torch.Tensor) -> torch.Tensor:
         """
         Fallback image encoding when SigLIP-2 is not available
         """
-        # Simple image feature extraction
-        features = self.image_conv(images)
-        features = features.squeeze(-1).squeeze(-1)  # (B, 256)
+        batch_size = images.shape[0]
+        num_views = images.shape[1]  # Number of images per sample
+        features_list = []
         
-        # Project to output dimension
-        features = self.feature_projection(features)
+        for i in range(batch_size):
+            batch_features = []
+            for j in range(num_views):
+                # Process each image individually
+                single_image = images[i, j].unsqueeze(0)  # Add batch dimension
+                
+                # Simple image feature extraction
+                features = self.image_conv(single_image)
+                features = features.squeeze(-1).squeeze(-1)  # (1, 256)
+                
+                # Project to output dimension
+                features = self.feature_projection(features)
+                
+                batch_features.append(features)
+            
+            # Average features across all views for this sample
+            if batch_features:
+                avg_features = torch.mean(torch.stack(batch_features), dim=0)
+                features_list.append(avg_features)
+            else:
+                features_list.append(torch.zeros(1, self.output_dim))
         
-        return features
+        return torch.cat(features_list, dim=0)
     
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         """
