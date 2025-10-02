@@ -262,7 +262,6 @@ def build_dataset(args):
                 use_multiview=args.use_multiview,
                 use_height=args.use_height,
                 augment=False,
-                use_additional_encoders=args.use_additional_encoders
             )
         )
     datasets['train'] = torch.utils.data.ConcatDataset(train_datasets)
