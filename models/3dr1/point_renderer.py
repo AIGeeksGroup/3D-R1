@@ -5,32 +5,27 @@ import numpy as np
 from typing import Dict, List, Tuple, Optional
 import math
 
-try:
-    import pytorch3d
-    from pytorch3d.renderer import (
-        FoVPerspectiveCameras,
-        PointLights,
-        RasterizationSettings,
-        MeshRenderer,
-        MeshRasterizer,
-        SoftPhongShader,
-        TexturesVertex,
-        look_at_view_transform,
-        PointsRasterizationSettings,
-        PointsRenderer,
-        PointsRasterizer,
-        AlphaCompositor,
-        NormWeightedCompositor,
-        PulsarRenderer
-    )
-    from pytorch3d.structures import Meshes, Pointclouds
-    from pytorch3d.ops import sample_points_from_meshes
-    from pytorch3d.loss import point_mesh_distance
-    PYTORCH3D_AVAILABLE = True
-except ImportError:
-    PYTORCH3D_AVAILABLE = False
-    print("Warning: PyTorch3D not available. Please install it with: pip install pytorch3d")
-
+import pytorch3d
+from pytorch3d.renderer import (
+    FoVPerspectiveCameras,
+    PointLights,
+    RasterizationSettings,
+    MeshRenderer,
+    MeshRasterizer,
+    SoftPhongShader,
+    TexturesVertex,
+    look_at_view_transform,
+    PointsRasterizationSettings,
+    PointsRenderer,
+    PointsRasterizer,
+    AlphaCompositor,
+    NormWeightedCompositor
+)
+from pytorch3d.renderer.points.pulsar.unified import PulsarPointsRenderer as PulsarRenderer
+from pytorch3d.structures import Meshes, Pointclouds
+from pytorch3d.ops import sample_points_from_meshes
+from pytorch3d.loss import point_mesh_distance
+PYTORCH3D_AVAILABLE = True
 
 class PointCloudRenderer(nn.Module):
     """
@@ -305,7 +300,7 @@ class FallbackRenderer(nn.Module):
         rotation_matrix = camera_params['rotation'].to(self.device)
         
         # Transform points
-        points_cam = torch.matmul(point_cloud - camera_pos, rotation_matrix.T)
+        points_cam = torch.matmul(point_cloud[:, :3] - camera_pos, rotation_matrix.T)
         
         # Filter points in front of camera
         valid_points = points_cam[:, 2] > 0.1  # Points behind camera
@@ -334,16 +329,26 @@ class FallbackRenderer(nn.Module):
         # Point splatting with depth sorting
         depths = points_cam[:, 2]
         sorted_indices = torch.argsort(depths, descending=True)  # Render far points first
+        sorted_2d = points_2d[sorted_indices]
+        x = torch.round(sorted_2d[:, 0]).long()
+        y = torch.round(sorted_2d[:, 1]).long() 
         
-        for idx in sorted_indices:
-            x, y = points_2d[idx, 0], points_2d[idx, 1]
-            
-            # Check if point is within image bounds
-            if 0 <= x < self.image_size and 0 <= y < self.image_size:
-                # Simple point splatting (you could improve this with proper splatting)
-                x_int, y_int = int(x), int(y)
-                if 0 <= x_int < self.image_size and 0 <= y_int < self.image_size:
-                    image[:, y_int, x_int] = colors[idx]
+        valid_mask = (x >= 0) & (x < self.image_size) & (y >= 0) & (y < self.image_size)
+        valid_x = x[valid_mask]
+        valid_y = y[valid_mask]
+        valid_colors = colors[sorted_indices][valid_mask]
+        
+        image = torch.zeros((3, self.image_size, self.image_size), device=self.device, dtype=colors.dtype)
+        
+        flat_image = image.view(3, -1)
+        flat_indices = valid_y * self.image_size + valid_x
+        
+        if valid_colors.ndim == 2 and valid_colors.shape[0] == len(valid_x):
+            valid_colors = valid_colors.T
+        
+        flat_image.scatter_(dim=1, index=flat_indices.unsqueeze(0).repeat(3, 1), src=valid_colors)
+        
+        image = flat_image.view(3, self.image_size, self.image_size)
         
         return image
     
@@ -378,11 +383,17 @@ def create_point_cloud_renderer(use_pytorch3d: bool = True,
         Point cloud renderer
     """
     if use_pytorch3d and PYTORCH3D_AVAILABLE:
-        return PyTorch3DPointCloudRenderer(
-            image_size=image_size,
-            device=device,
-            **kwargs
-        )
+        try:
+            return PointsRenderer(
+                image_size=image_size,
+                device=device,
+                **kwargs
+            )
+        except:
+            return FallbackRenderer(
+                image_size=image_size,
+                device=device
+            )
     else:
         print("Using fallback renderer (PyTorch3D not available)")
         return FallbackRenderer(

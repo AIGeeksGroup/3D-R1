@@ -4,7 +4,7 @@ python main.py \
     --test_ckpt ./checkpoints/checkpoint_rl.pth \
     --dataset scannnet \
     --vocab qwen/Qwen2.5-7B \
-    --qformer_vocab bert-base-large \
+    --qformer_vocab google-bert/bert-base-uncased \
     --checkpoint_dir ./results \
     --use_color --use_normal \
     --detector point_encoder \
@@ -18,3 +18,5 @@ python main.py \
     --view_selection_weight 0.1 \
     --use_pytorch3d_rendering \
     --use_multimodal_model
+
+# qformer_vocab给的是bert-base-large，但是找不到

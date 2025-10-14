@@ -46,10 +46,15 @@ def evaluate(
             
         model_input = {
             'point_clouds': batch_data_label['point_clouds'],
+            'point_clouds_color': batch_data_label['pcl_color'],
             'point_cloud_dims_min': batch_data_label['point_cloud_dims_min'],
             'point_cloud_dims_max': batch_data_label['point_cloud_dims_max'],
+            'qformer_input_ids':     batch_data_label['qformer_input_ids'],
+            'qformer_attention_mask':batch_data_label['qformer_attention_mask'],
+            'instruction':           batch_data_label['instruction'],
+            'instruction_mask':      batch_data_label['instruction_mask'],
         }
-        outputs = model(model_input, is_eval=True)
+        outputs = model(model_input, is_eval=True, task_name='ov-det')
         
         outputs = dict(
             box_corners=outputs["box_corners"],

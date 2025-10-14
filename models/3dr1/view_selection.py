@@ -77,7 +77,7 @@ class DynamicViewSelection(nn.Module):
                   wclip_norm * clip_alignment)
         return utility
     
-    def render_candidate_views(self, point_cloud, num_candidates=8):
+    def render_candidate_views(self, point_cloud, num_candidates=8, point_cloud_color = None):
         """Render candidate views from point cloud using proper 3D rendering
         
         Args:
@@ -85,8 +85,8 @@ class DynamicViewSelection(nn.Module):
             num_candidates: Number of candidate views to generate
         """
         # Sample camera positions around the point cloud
-        center = point_cloud.mean(0)
-        radius = torch.norm(point_cloud - center, dim=1).max()
+        center = point_cloud[:, :3].mean(0)
+        radius = torch.norm(point_cloud[:, :3] - center, dim=1).max()
         
         # Generate camera parameters for different viewpoints
         camera_params_list = []
@@ -102,12 +102,12 @@ class DynamicViewSelection(nn.Module):
             y = center[1] + radius * 1.5 * torch.sin(angle)
             z = center[2] + radius * 1.5 * height
             
-            camera_pos = torch.tensor([x, y, z])
             look_at = center
+            camera_pos = torch.tensor([x, y, z]).to(look_at.device)
             
             # Calculate camera orientation
             forward = F.normalize(look_at - camera_pos, dim=-1)
-            right = F.normalize(torch.cross(forward, torch.tensor([0, 0, 1.0])), dim=-1)
+            right = F.normalize(torch.cross(forward, torch.tensor([0, 0, 1.0], device=look_at.device)), dim=-1)
             up = F.normalize(torch.cross(right, forward), dim=-1)
             
             # Create rotation matrix
@@ -121,9 +121,13 @@ class DynamicViewSelection(nn.Module):
             camera_params_list.append(camera_params)
         
         # Render all views using the proper renderer
-        rendered_images = self.renderer.render_multiple_views(
-            point_cloud, camera_params_list
-        )
+        rendered_images = []
+        for camera_params in camera_params_list:
+            rendered_image = self.renderer.render_point_cloud(
+                point_cloud, camera_params, point_cloud_color
+            )
+            rendered_images.append(rendered_image)
+        rendered_images = torch.stack(rendered_images)
         
         return rendered_images
     
@@ -135,9 +139,13 @@ class DynamicViewSelection(nn.Module):
         for img in rendered_images:
             # Convert tensor to PIL Image
             img_np = img.cpu().numpy()
-            img_np = (img_np - img_np.min()) / (img_np.max() - img_np.min()) * 255
+            img_len = img_np.max() - img_np.min()
+            if img_len < 1e-5:
+                img_np = np.zeros_like(img_np)
+            else:
+                img_np = (img_np - img_np.min()) / (img_np.max() - img_np.min()) * 255
             img_np = img_np.astype(np.uint8)
-            pil_img = Image.fromarray(img_np)
+            pil_img = Image.fromarray(np.transpose(img_np, (1,2,0)))
             
             # Apply CLIP preprocessing
             processed_img = self.clip_preprocess(pil_img)
@@ -147,22 +155,22 @@ class DynamicViewSelection(nn.Module):
         
         # Encode with CLIP
         with torch.no_grad():
-            view_features = self.clip_model.encode_image(processed_images)
+            view_features = self.clip_model.encode_image(processed_images.to(rendered_images.device))
         
         return view_features
     
-    def forward(self, point_cloud, text):
+    def forward(self, point_cloud, text, point_cloud_color = None):
         """Forward pass with real rendering and encoding"""
         # Render candidate views from point cloud
-        rendered_images = self.render_candidate_views(point_cloud)
+        rendered_images = self.render_candidate_views(point_cloud, point_cloud_color=point_cloud_color)
         
         # Encode views with CLIP
-        view_features = self.encode_views_with_clip(rendered_images)
+        view_features = self.encode_views_with_clip(rendered_images).float()
         
         # Encode text with CLIP
         text_tokens = clip.tokenize([text]).to(self.device)
         with torch.no_grad():
-            text_features = self.clip_model.encode_text(text_tokens)
+            text_features = self.clip_model.encode_text(text_tokens).float()
         
         # Compute scores
         text_relevance, coverage, clip_alignment = self.compute_scores(

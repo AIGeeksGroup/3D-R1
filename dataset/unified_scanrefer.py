@@ -4,10 +4,10 @@ import numpy as np
 import random
 from copy import deepcopy
 from typing import Dict, List
-from datasets.scannet_base_dataset import BASE, DatasetConfig, ScanNetBaseDataset
+from dataset.scannet_base_dataset import BASE, DatasetConfig, ScanNetBaseDataset
 from transformers import AutoTokenizer
-from eval_utils.evaluate_densecap import evaluate
-from datasets.task_prompts import TASK_PROPMT, BOX_FORMAT
+from eval_utils.evaluate_det import evaluate
+from dataset.task_prompts import TASK_PROPMT, BOX_FORMAT
 
 
 class UnifiedScanReferDataset(ScanNetBaseDataset):
