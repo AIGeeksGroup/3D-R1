@@ -238,20 +238,19 @@ def build_dataset(args):
             dataset_module = importlib.import_module(f'dataset.{dataset}')
             dataset_class = dataset_module.Dataset
         
-        train_datasets.append(
-            dataset_class(
-                args,
-                dataset_config, 
-                split_set="train", 
-                use_color=args.use_color,
-                use_normal=args.use_normal,
-                use_multiview=args.use_multiview,
-                use_height=args.use_height,
-                augment=True,
-                use_additional_encoders=args.use_additional_encoders,
-                use_rl_training=args.use_rl_training,  # Pass RL training flag
+        if not args.test_only:
+            train_datasets.append(
+                dataset_class(
+                    args,
+                    dataset_config, 
+                    split_set="train", 
+                    use_color=args.use_color,
+                    use_normal=args.use_normal,
+                    use_multiview=args.use_multiview,
+                    use_height=args.use_height,
+                    augment=True,
+                )
             )
-        )
         datasets['test'].append(
             dataset_module.Dataset(
                 args,
@@ -262,17 +261,20 @@ def build_dataset(args):
                 use_multiview=args.use_multiview,
                 use_height=args.use_height,
                 augment=False,
-                use_additional_encoders=args.use_additional_encoders
             )
         )
-    datasets['train'] = torch.utils.data.ConcatDataset(train_datasets)
-    
-    train_sampler, train_loader = build_dataloader_func(args, datasets['train'], split='train')
     dataloaders = {
-        'train': train_loader,
+        'train': None,
         'test': [],
-        'train_sampler': train_sampler,
+        'train_sampler': None,
     }
+    if not args.test_only:
+        datasets['train'] = torch.utils.data.ConcatDataset(train_datasets)
+        
+        train_sampler, train_loader = build_dataloader_func(args, datasets['train'], split='train')
+        dataloaders['train_sampler'] = train_sampler
+        dataloaders['train'] = train_loader
+    
     for dataset in datasets['test']:
         _, test_loader = build_dataloader_func(args, dataset, split='test')
         dataloaders['test'].append(test_loader)
@@ -319,7 +321,6 @@ def main(local_rank, args):
         except:
             print('test the model from scratch...')
         
-        model_no_ddp = model.cuda()
         model = model.cuda(local_rank)
         
         if is_distributed():

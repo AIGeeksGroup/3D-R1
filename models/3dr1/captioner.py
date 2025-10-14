@@ -248,7 +248,7 @@ class captioner(nn.Module):
             self.use_image = getattr(args, 'use_image', True)
             if self.use_image:
                 self.image_encoder = SigLIP2ImageEncoder(
-                    model_name="google/siglip-vit-large-patch14-384",
+                    model_name="google/siglip2-large-patch16-384",
                     feature_dim=1024,
                     output_dim=getattr(args, 'image_encoder_dim', 256),
                     device="cuda"
@@ -392,8 +392,10 @@ class captioner(nn.Module):
             # Decode the tokenized instruction
             instruction_text = self.tokenizer.decode(inputs['instruction'][0], skip_special_tokens=True)
             point_cloud = inputs["point_clouds"][0]  # Use first sample for view selection
-            
-            selected_view_features, view_indices = self.view_selection(point_cloud, instruction_text)
+            point_cloud_color = None
+            if 'point_clouds_color' in inputs:
+                point_cloud_color = inputs["point_clouds_color"][0]
+            selected_view_features, view_indices = self.view_selection(point_cloud, instruction_text, point_cloud_color)
             
             # Add view selection features to encoder hidden states
             # This is a simplified integration - in practice you might want more sophisticated fusion
