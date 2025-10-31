@@ -38,6 +38,7 @@ Optional fields: `labels`([N]), `scores`([N]).
 ### Scripts and Entrypoints
 - Main visualizer: `visualization/bbox_visualization.py`
 - Convenience script: `script/visualize.sh`
+- Export predictions from a checkpoint: `visualization/export_predictions.py`
 
 #### Run directly (use `--spawn` to open rerun in a separate window)
 ```bash
@@ -51,9 +52,40 @@ python visualization/bbox_visualization.py \
 
 Alternatively, via the convenience script:
 ```bash
-bash script/visualize.sh
+bash script/visualize.sh /path/to/scene.ply scene0000_00 outputs/preds npz
 ```
-Update the placeholder paths in the script before running.
+This script will first export predictions using your current model flags, then open the viewer.
+
+Arguments:
+- $1: point cloud path (default `/path/to/scene.ply`)
+- $2: scan name (default `scene0000_00`)
+- $3: output directory for predictions (default `outputs/preds`)
+- $4: output format `npz|json` (default `npz`)
+
+Example (JSON output):
+```bash
+bash script/visualize.sh data/scannet/scene0000_00.ply scene0000_00 outputs/preds json
+```
+
+#### Produce predictions first (optional, for end-to-end):
+```bash
+python visualization/export_predictions.py \
+  --output_dir outputs/preds \
+  --format npz \
+  --max_scenes 1 \
+  --test_only \
+  --test_ckpt ./checkpoints/checkpoint_rl.pth \
+  --dataset scannet \
+  --vocab qwen/Qwen2.5-7B \
+  --qformer_vocab google-bert/bert-base-uncased \
+  --checkpoint_dir ./results \
+  --use_color --use_normal \
+  --detector point_encoder \
+  --captioner 3dr1 \
+  --use_additional_encoders --use_depth --use_image \
+  --enable_dynamic_views --use_pytorch3d_rendering --use_multimodal_model
+```
+This will create files like `outputs/preds/scene0000_00.npz` containing `corners` `[N,8,3]` (and, if available, `labels`, `scores`).
 
 ### Common Arguments
 - `--point_cloud, -p`: path to the point cloud file (required)
@@ -61,11 +93,6 @@ Update the placeholder paths in the script before running.
 - `--radius`: point radius, default `0.01`
 - `--max_points`: max number of points to render, default `1_000_000` (random subsample if exceeded)
 - Rerun common args: e.g., `--spawn`, `--save`, etc. (see rerun help)
-
-Show full help:
-```bash
-python visualization/bbox_visualization.py --help
-```
 
 ### Behavior and UI
 - Right-handed coordinates, Z-up.
