@@ -12,6 +12,7 @@ import h5py
 import numpy as np
 import torch
 import multiprocessing as mp
+from types import SimpleNamespace
 
 import utils.pc_util as pc_util
 from torch.utils.data import Dataset
@@ -151,6 +152,7 @@ class ScanNetBaseDataset(Dataset):
         use_additional_encoders=False,
     ):
 
+        self.args = args if args is not None else SimpleNamespace()
         self.dataset_config = dataset_config
         # assert split_set in ["train", "val"]
         
@@ -237,6 +239,8 @@ class ScanNetBaseDataset(Dataset):
             normals = mesh_vertices[:,6:9]
             point_cloud = np.concatenate([point_cloud, normals], 1)
         
+        args_cfg = getattr(self, "args", SimpleNamespace())
+
         if self.use_multiview:
             # load multiview database
             pid = mp.current_process().pid
@@ -396,7 +400,7 @@ class ScanNetBaseDataset(Dataset):
                         image_files.sort()
                         
                         # Load up to max_multiview_images (configurable)
-                        max_images = min(getattr(self.args, 'max_multiview_images', 8), len(image_files))
+                        max_images = min(getattr(args_cfg, 'max_multiview_images', 8), len(image_files))
                         images = []
                         
                         for i in range(max_images):
@@ -414,14 +418,14 @@ class ScanNetBaseDataset(Dataset):
                             padding = np.zeros((max_images - len(images), 3, 224, 224), dtype=np.float32)
                             ret_dict["images"] = np.concatenate([ret_dict["images"], padding], axis=0)
                     else:
-                        max_images = getattr(self.args, 'max_multiview_images', 8)
+                        max_images = getattr(args_cfg, 'max_multiview_images', 8)
                         ret_dict["images"] = np.zeros((max_images, 3, 224, 224), dtype=np.float32)
                 except Exception as e:
                     print(f"Warning: Failed to load images for {scan_name}: {e}")
-                    max_images = getattr(self.args, 'max_multiview_images', 8)
+                    max_images = getattr(args_cfg, 'max_multiview_images', 8)
                     ret_dict["images"] = np.zeros((max_images, 3, 224, 224), dtype=np.float32)
             else:
-                max_images = getattr(self.args, 'max_multiview_images', 8)
+                max_images = getattr(args_cfg, 'max_multiview_images', 8)
                 ret_dict["images"] = np.zeros((max_images, 3, 224, 224), dtype=np.float32)
             
             # Load multiple depth maps if available
@@ -434,7 +438,7 @@ class ScanNetBaseDataset(Dataset):
                         depth_files.sort()
                         
                         # Load up to max_multiview_depth (configurable)
-                        max_depth_maps = min(getattr(self.args, 'max_multiview_depth', 8), len(depth_files))
+                        max_depth_maps = min(getattr(args_cfg, 'max_multiview_depth', 8), len(depth_files))
                         depth_maps = []
                         
                         for i in range(max_depth_maps):
@@ -458,14 +462,36 @@ class ScanNetBaseDataset(Dataset):
                             padding = np.zeros((max_depth_maps - len(depth_maps), 224, 224), dtype=np.float32)
                             ret_dict["depth_maps"] = np.concatenate([ret_dict["depth_maps"], padding], axis=0)
                     else:
-                        max_depth_maps = getattr(self.args, 'max_multiview_depth', 8)
+                        max_depth_maps = getattr(args_cfg, 'max_multiview_depth', 8)
                         ret_dict["depth_maps"] = np.zeros((max_depth_maps, 224, 224), dtype=np.float32)
                 except Exception as e:
                     print(f"Warning: Failed to load depth maps for {scan_name}: {e}")
-                    max_depth_maps = getattr(self.args, 'max_multiview_depth', 8)
+                    max_depth_maps = getattr(args_cfg, 'max_multiview_depth', 8)
                     ret_dict["depth_maps"] = np.zeros((max_depth_maps, 224, 224), dtype=np.float32)
             else:
-                max_depth_maps = getattr(self.args, 'max_multiview_depth', 8)
+                max_depth_maps = getattr(args_cfg, 'max_multiview_depth', 8)
+
+        # Ensure downstream code always sees instruction/qformer placeholders
+        if "instruction" not in ret_dict or "instruction_mask" not in ret_dict:
+            inst_len = max(1, int(getattr(args_cfg, "eval_instruction_len", 1)))
+            ret_dict.setdefault(
+                "instruction",
+                np.zeros((inst_len,), dtype=np.int64)
+            )
+            ret_dict.setdefault(
+                "instruction_mask",
+                np.zeros((inst_len,), dtype=np.float32)
+            )
+        if "qformer_input_ids" not in ret_dict or "qformer_attention_mask" not in ret_dict:
+            q_len = max(1, int(getattr(args_cfg, "eval_qformer_len", 1)))
+            ret_dict.setdefault(
+                "qformer_input_ids",
+                np.zeros((q_len,), dtype=np.int64)
+            )
+            ret_dict.setdefault(
+                "qformer_attention_mask",
+                np.zeros((q_len,), dtype=np.float32)
+            )
                 ret_dict["depth_maps"] = np.zeros((max_depth_maps, 224, 224), dtype=np.float32)
         
         return ret_dict

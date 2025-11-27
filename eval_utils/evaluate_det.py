@@ -41,6 +41,26 @@ def evaluate(
     for curr_iter, batch_data_label in enumerate(dataset_loader):
         
         curr_time = time.time()
+        batch_size = batch_data_label["point_clouds"].shape[0]
+
+        if "instruction" not in batch_data_label:
+            default_inst_len = getattr(args, "eval_instruction_len", 1)
+            batch_data_label["instruction"] = torch.zeros(
+                (batch_size, default_inst_len), dtype=torch.long
+            )
+            batch_data_label["instruction_mask"] = torch.zeros(
+                (batch_size, default_inst_len), dtype=torch.float32
+            )
+
+        if "qformer_input_ids" not in batch_data_label:
+            default_q_len = getattr(args, "eval_qformer_len", 1)
+            batch_data_label["qformer_input_ids"] = torch.zeros(
+                (batch_size, default_q_len), dtype=torch.long
+            )
+            batch_data_label["qformer_attention_mask"] = torch.zeros(
+                (batch_size, default_q_len), dtype=torch.float32
+            )
+
         for key in batch_data_label:
             batch_data_label[key] = batch_data_label[key].to(net_device)
             
@@ -54,7 +74,7 @@ def evaluate(
             'instruction':           batch_data_label['instruction'],
             'instruction_mask':      batch_data_label['instruction_mask'],
         }
-        outputs = model(model_input, is_eval=True)
+        outputs = model(model_input, is_eval=True, task_name="ov-det")
         
         outputs = dict(
             box_corners=outputs["box_corners"],

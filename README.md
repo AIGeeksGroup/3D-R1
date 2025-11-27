@@ -108,6 +108,34 @@ python cython_compile.py build_ext --inplace
 You can download the pre-processed data from [here](https://huggingface.co/datasets/AIGeeksGroup/ScanQA).
 Process 3D data: Follow the instructions [here](https://github.com/daveredrum/Scan2Cap/blob/main/data/scannet/README.md) and download the ScanNetV2 dataset.
 
+#### Download Multi-view Images and Depth Maps (Optional)
+> [!NOTE]
+> This step is **required** when enabling external multi-view and depth map options (i.e., when using `--use_additional_encoders`, `--use_depth`, or `--use_image` flags).
+
+The preprocessed scannet_data does not include multi-view images and depth maps. If you plan to use the additional encoders, you need to download the multi-view images and depth maps:
+
+1. Download the data from: http://kaldir.vc.in.tum.de/3dsis/scannet_train_images.zip
+2. Extract the contents to your `data/scannet/scannet_data/` directory. The extracted structure should have each scene folder (e.g., `scene0000_00/`) containing:
+   - `images/` folder with multi-view images (`.jpg`, `.png`, or `.jpeg` files)
+   - `depth/` folder with depth maps (`.png` or `.npy` files)
+
+For example, after extraction, your directory structure should look like:
+```
+data/scannet/scannet_data/
+├── scene0000_00/
+│   ├── images/
+│   │   ├── image_000.jpg
+│   │   ├── image_001.jpg
+│   │   └── ...
+│   ├── depth/
+│   │   ├── depth_000.png
+│   │   ├── depth_001.png
+│   │   └── ...
+│   ├── scene0000_00_aligned_vert.npy
+│   └── ...
+└── ...
+```
+
 #### Prepare Language Annotations
 
 To train the model, you are required to prepare language annotations from `ScanRefer`, `Nr3D`, `ScanQA`, and the ScanNet part of `3D-LLM`.
