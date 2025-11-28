@@ -82,6 +82,7 @@ h5py
 scipy
 cython
 plyfile
+numpy==1.26.4
 'trimesh>=2.35.39,<2.35.40'
 networkx==3.2.1
 'torch=2.0.1+cu118'
