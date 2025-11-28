@@ -13,7 +13,7 @@ python -m torch.distributed.launch \
     --master_port=29500 \
     main.py \
     --checkpoint_dir ./checkpoints/fast_eval \
-    --dataset scenecold \
+    --dataset scenecold_dataset \
     --vocab "qwen/Qwen2.5-7B" \
     --qformer_vocab "bert-base-uncased" \
     --captioner 3dr1 \
