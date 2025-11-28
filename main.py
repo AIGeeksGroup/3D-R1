@@ -164,6 +164,7 @@ def make_args_parser():
     ##### Distributed #####
     parser.add_argument("--ngpus", default=1, type=int, help='number of gpus')
     parser.add_argument("--dist_url", default='tcp://localhost:12345', type=str)
+    parser.add_argument("--local-rank", type=int, default=0)
     
     args = parser.parse_args()
     args.use_height = not args.no_height
@@ -249,7 +250,7 @@ def build_dataset(args):
                     use_height=args.use_height,
                     augment=True,
                     use_additional_encoders=args.use_additional_encoders,
-                    use_rl_training=args.use_rl_training,  # Pass RL training flag
+                    # use_rl_training=args.use_rl_training,  # Pass RL training flag
                 )
             )
         datasets['test'].append(
