@@ -250,7 +250,7 @@ def build_dataset(args):
                     use_height=args.use_height,
                     augment=True,
                     use_additional_encoders=args.use_additional_encoders,
-                    use_rl_training=args.use_rl_training,  # Pass RL training flag
+                    # use_rl_training=args.use_rl_training,  # Pass RL training flag
                 )
             )
         datasets['test'].append(
