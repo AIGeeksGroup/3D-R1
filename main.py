@@ -164,6 +164,7 @@ def make_args_parser():
     ##### Distributed #####
     parser.add_argument("--ngpus", default=1, type=int, help='number of gpus')
     parser.add_argument("--dist_url", default='tcp://localhost:12345', type=str)
+    parser.add_argument("--local-rank", type=int, default=0)
     
     args = parser.parse_args()
     args.use_height = not args.no_height
