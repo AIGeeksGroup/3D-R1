@@ -83,7 +83,7 @@ scipy
 cython
 plyfile
 'trimesh>=2.35.39,<2.35.40'
-'networkx>=2.2,<2.3'
+networkx==3.2.1
 'torch=2.0.1+cu118'
 google-generativeai
 peft>=0.7.0
