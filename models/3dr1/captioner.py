@@ -396,7 +396,7 @@ class captioner(nn.Module):
             point_cloud_color = None
             if 'point_clouds_color' in inputs:
                 point_cloud_color = inputs["point_clouds_color"][0]
-            selected_view_features, view_indices = self.view_selection(point_cloud, instruction_text, point_cloud_color)t)
+            selected_view_features, view_indices = self.view_selection(point_cloud, instruction_text, point_cloud_color)
             
             # Add view selection features to encoder hidden states
             # This is a simplified integration - in practice you might want more sophisticated fusion
