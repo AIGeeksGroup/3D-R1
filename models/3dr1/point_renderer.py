@@ -385,7 +385,7 @@ def create_point_cloud_renderer(use_pytorch3d: bool = True,
     """
     if use_pytorch3d and PYTORCH3D_AVAILABLE:
         try:
-            return PointsRenderer(
+            return PointCloudRenderer(
                 image_size=image_size,
                 device=device,
                 **kwargs

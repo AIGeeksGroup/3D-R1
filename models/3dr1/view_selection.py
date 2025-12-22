@@ -5,7 +5,6 @@ import numpy as np
 from typing import Dict, List, Tuple
 import clip
 from PIL import Image
-import torchvision.transforms as transforms
 from .point_renderer import create_point_cloud_renderer
 
 class DynamicViewSelection(nn.Module):
@@ -18,6 +17,11 @@ class DynamicViewSelection(nn.Module):
         
         # Load CLIP
         self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=device)
+        self.clip_model.eval()
+        # OpenAI CLIP uses fp16 weights on CUDA by default; float32 is much more stable
+        # for out-of-distribution / synthetic render inputs and prevents NaNs.
+        if str(device) != "cpu":
+            self.clip_model = self.clip_model.float()
         
         # Initialize point cloud renderer
         self.renderer = create_point_cloud_renderer(
@@ -87,6 +91,8 @@ class DynamicViewSelection(nn.Module):
         # Sample camera positions around the point cloud
         center = point_cloud[:, :3].mean(0)
         radius = torch.norm(point_cloud[:, :3] - center, dim=1).max()
+        # Avoid degenerate camera placement when point cloud collapses to a point
+        radius = torch.clamp(radius, min=1e-3)
         
         # Generate camera parameters for different viewpoints
         camera_params_list = []
@@ -106,8 +112,18 @@ class DynamicViewSelection(nn.Module):
             camera_pos = torch.tensor([x, y, z]).to(look_at.device)
             
             # Calculate camera orientation
-            forward = F.normalize(look_at - camera_pos, dim=-1)
-            right = F.normalize(torch.cross(forward, torch.tensor([0, 0, 1.0], device=look_at.device)), dim=-1)
+            forward = look_at - camera_pos
+            if torch.norm(forward) < 1e-6:
+                forward = torch.tensor([0.0, 0.0, 1.0], device=look_at.device, dtype=look_at.dtype)
+            forward = F.normalize(forward, dim=-1)
+
+            # Robust basis construction: handle forward ~ parallel to chosen up vector
+            up_ref = torch.tensor([0.0, 0.0, 1.0], device=look_at.device, dtype=forward.dtype)
+            right = torch.cross(forward, up_ref)
+            if torch.norm(right) < 1e-6:
+                up_ref = torch.tensor([0.0, 1.0, 0.0], device=look_at.device, dtype=forward.dtype)
+                right = torch.cross(forward, up_ref)
+            right = F.normalize(right, dim=-1)
             up = F.normalize(torch.cross(right, forward), dim=-1)
             
             # Create rotation matrix
@@ -138,7 +154,11 @@ class DynamicViewSelection(nn.Module):
         processed_images = []
         for img in rendered_images:
             # Convert tensor to PIL Image
-            img_np = img.cpu().numpy()
+            img = torch.nan_to_num(img, nan=0.0, posinf=1.0, neginf=0.0)
+            img_np = img.detach().cpu().numpy()
+            # If renderer produced NaNs/Infs, numpy reductions will propagate NaNs
+            if not np.isfinite(img_np).all():
+                img_np = np.nan_to_num(img_np, nan=0.0, posinf=1.0, neginf=0.0)
             img_len = img_np.max() - img_np.min()
             if img_len < 1e-5:
                 img_np = np.zeros_like(img_np)
@@ -155,11 +175,15 @@ class DynamicViewSelection(nn.Module):
         
         # Encode with CLIP
         with torch.no_grad():
-            view_features = self.clip_model.encode_image(processed_images.to(rendered_images.device))
+            processed_images = torch.nan_to_num(processed_images, nan=0.0, posinf=0.0, neginf=0.0)
+            # Force float32 for numerical stability (CLIP was converted to float32 in __init__)
+            view_features = self.clip_model.encode_image(
+                processed_images.to(device=rendered_images.device, dtype=torch.float32)
+            )
         
         return view_features
     
-    def forward(self, point_cloud, text):
+    def forward(self, point_cloud, text, point_cloud_color=None):
         """Forward pass with real rendering and encoding"""
         # Render candidate views from point cloud
         rendered_images = self.render_candidate_views(point_cloud, point_cloud_color=point_cloud_color)

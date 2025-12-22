@@ -86,6 +86,7 @@ numpy==1.26.4
 'trimesh>=2.35.39,<2.35.40'
 networkx==3.2.1
 'torch=2.0.1+cu118'
+'pytorch3d==0.7.4'
 google-generativeai
 peft>=0.7.0
 transformers>=4.35.0
@@ -93,8 +94,16 @@ accelerate>=0.20.0
 tqdm
 orjson
 clip @ git+https://github.com/openai/CLIP.git
-git+https://github.com/LiheYoung/Depth-Anything.git
 ```
+> [!NOTE]
+> **PyTorch3D is optional** and only required when enabling the proper 3D renderer (e.g., `--use_pytorch3d_rendering`).  
+> For the environment above (`torch=2.0.1+cu118`, CUDA 11.8), we recommend **PyTorch3D `0.7.4`**. You can install it via:
+> ```bash
+> conda install pytorch3d=0.7.4 -c pytorch3d
+> # or
+> pip install pytorch3d==0.7.4
+> ```
+> The built-in depth encoder now loads Depth-Anything V2 weights directly from Hugging Face via `transformers`, so you no longer need to clone or install the original Depth-Anything repository manually.
 After that, build the `pointnet2` and accelerated `giou` from source:
 ```bash
 # PointNet++
