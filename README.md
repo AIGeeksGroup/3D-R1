@@ -245,8 +245,7 @@ bash script/visualize.sh
 
 ## 🌟 Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=AIGeeksGroup/3D-R1&type=Date)](https://www.star-history.com/#AIGeeksGroup/3D-R1&Date)
-
+[![Star History Chart](https://api.star-history.com/chart?repos=AIGeeksGroup/3D-R1&type=date&legend=top-left&sealed_token=_U3BevgtNy843P4t1iUsOH3sZOCLVgltz8fKzZSjzwfymPibbKRk7wsrLkHmMKSWErwJE1q6mpQq7-Jz4EzsUpu6WZ5g69REKAB_m-mkYJXMNPuWG7YJQw)](https://www.star-history.com/?repos=AIGeeksGroup%2F3D-R1&type=date&legend=top-left)
 
 ## 😘 Acknowledgement
 We thank the authors of [Qwen](https://github.com/QwenLM/Qwen), [LSceneLLM](https://github.com/Hoyyyaard/LSceneLLM), [ARKit](https://github.com/apple/ARKitScenes), and [DeepSeek-Math](https://github.com/deepseek-ai/DeepSeek-Math) for their open-source code.
